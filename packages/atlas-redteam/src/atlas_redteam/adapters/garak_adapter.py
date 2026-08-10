@@ -26,7 +26,25 @@ from atlas_redteam.target import AtlasClient
 DETECTOR_HIT_THRESHOLD = 0.5
 
 
-def build_generator_config(target: AtlasClient) -> dict:
+def build_generator_config(
+    target: AtlasClient, surface: str = "chat", session_id: str | None = None
+) -> dict:
+    """surface: "chat" (POST /chat) or "agent" (POST /agent/act).
+
+    For "agent", session_id is a single fixed value baked into the request
+    template for the whole probe run — garak's REST generator only exposes
+    one $INPUT substitution point, so a per-request session id isn't
+    achievable through it; a fixed id is the honest alternative (documented
+    in the harness README's tool-limitations section) and is sufficient for
+    a single-session attack probe.
+    """
+    if surface == "agent":
+        uri = f"{target.base_url}/agent/act"
+        body = {"session_id": session_id or "garak-agent-probe", "message": "$INPUT"}
+    else:
+        uri = f"{target.base_url}/chat"
+        body = {"message": "$INPUT"}
+
     # NOTE: no outer "generators" key. garak's CLI (--generator_option_file)
     # merges this file's content directly into _config.plugins.generators —
     # unlike loading via the full _config object programmatically, which
@@ -36,15 +54,18 @@ def build_generator_config(target: AtlasClient) -> dict:
     return {
         "rest": {
             "RestGenerator": {
-                "uri": f"{target.base_url}/chat",
+                "uri": uri,
                 "method": "post",
                 "headers": {
                     "X-Atlas-Role": target.role,
                     "Content-Type": "application/json",
                 },
-                "req_template_json_object": {"message": "$INPUT"},
+                "req_template_json_object": body,
                 "response_json": True,
                 "response_json_field": "reply",
+                # /agent/act's multi-step tool-calling loop is much slower
+                # than /chat's single call; garak's default (20s) times out.
+                "request_timeout": 120 if surface == "agent" else 20,
             }
         }
     }
@@ -139,8 +160,10 @@ def run(
     generations: int = 10,
     seed: int = 1337,
     workdir: Path | None = None,
+    surface: str = "chat",
 ) -> ProbeRun:
-    generator_config = build_generator_config(target)
+    session_id = f"garak-{probe_name.replace('.', '-')}-{seed}"
+    generator_config = build_generator_config(target, surface=surface, session_id=session_id)
 
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(workdir) if workdir else Path(tmp)

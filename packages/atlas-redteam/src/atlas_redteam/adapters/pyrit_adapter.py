@@ -52,11 +52,25 @@ def _escape_for_json(text: str) -> str:
     return json.dumps(text)[1:-1]
 
 
-def _build_http_request(target: AtlasClient) -> str:
+def _build_http_request(
+    target: AtlasClient, surface: str = "chat", session_id: str | None = None
+) -> str:
+    """surface: "chat" (POST /chat) or "agent" (POST /agent/act).
+
+    For "agent", session_id is a single fixed value for the whole probe run —
+    PyRIT's HTTPTarget only exposes one {PROMPT} substitution point, so a
+    per-request session id isn't achievable through it either (same
+    limitation as garak_adapter's build_generator_config).
+    """
     host = target.base_url.split("://", 1)[1]
-    body = json.dumps({"message": "{PROMPT}"})
+    if surface == "agent":
+        path = "/agent/act"
+        body = json.dumps({"session_id": session_id or "pyrit-agent-probe", "message": "{PROMPT}"})
+    else:
+        path = "/chat"
+        body = json.dumps({"message": "{PROMPT}"})
     return (
-        "POST /chat HTTP/1.1\n"
+        f"POST {path} HTTP/1.1\n"
         f"Host: {host}\n"
         "Content-Type: application/json\n"
         f"X-Atlas-Role: {target.role}\n"
@@ -79,13 +93,19 @@ async def _run_async(
     taxonomy: list,
     substring: str,
     seed: int,
+    surface: str,
+    session_id: str | None,
 ) -> ProbeRun:
     await _ensure_initialized()
 
     pyrit_target = HTTPTarget(
-        http_request=_build_http_request(target),
+        http_request=_build_http_request(target, surface=surface, session_id=session_id),
         callback_function=get_http_target_json_response_callback_function("reply"),
         use_tls=target.base_url.startswith("https://"),
+        # /agent/act runs a multi-step tool-calling loop (LLM + MCP round
+        # trips) and can take much longer than /chat's single call; httpx's
+        # default timeout is far too short for it.
+        timeout=120,
     )
     scoring_config = AttackScoringConfig(
         objective_scorer=SubStringScorer(substring=substring, categories=["leak"])
@@ -119,7 +139,11 @@ def run(
     taxonomy: list,
     substring: str,
     seed: int = 1337,
+    surface: str = "chat",
 ) -> ProbeRun:
-    probe_run = asyncio.run(_run_async(target, objectives, taxonomy, substring, seed))
+    session_id = f"pyrit-{probe_name}-{seed}"
+    probe_run = asyncio.run(
+        _run_async(target, objectives, taxonomy, substring, seed, surface, session_id)
+    )
     probe_run.probe_id = f"pyrit:{probe_name}"
     return probe_run

@@ -1,10 +1,10 @@
+.git/
 .venv/
 __pycache__/
 *.egg-info/
 .env
 .env.*
-evidence/raw/
-evidence/transcripts/
-*.duckdb.wal
 .pytest_cache/
+.ruff_cache/
+evidence/
 packages/atlas/var/

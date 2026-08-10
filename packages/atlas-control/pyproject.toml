@@ -1,13 +1,36 @@
 [project]
 name = "atlas-control"
 version = "0.1.0"
-description = "Add your description here"
+description = "Deterministic policy-enforcement service Atlas's agent must call through for every tool invocation"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["atlas-schema", "pydantic>=2.9"]
+dependencies = [
+    "atlas-schema",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "httpx>=0.28",
+    "asyncpg>=0.30",
+    "pgvector>=0.3.6",
+    "mcp>=1.9",
+    "pyjwt>=2.9",
+]
 
 [tool.uv.sources]
 atlas-schema = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+atlas-control = "atlas_control.main:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["uv_build>=0.11.18,<0.12.0"]

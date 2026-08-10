@@ -21,8 +21,12 @@ Operating rules:
 def build_system_prompt(role: str) -> str:
     """Build the system prompt for a given caller role.
 
-    WEAKNESS (LLM03:2026 — Excessive Agency) lives in atlas.tools.issue_refund,
-    not here: the refund threshold stated below is never enforced in code.
+    MITIGATED (Project 3, was LLM03:2026 — Excessive Agency): the threshold
+    stated below is informational only now — it no longer does any
+    enforcement work. The real gate is atlas-control's OPA policy
+    (refund_threshold_cents in tool_authorization.rego), which the model
+    cannot see, cannot persuade, and cannot bypass by any phrasing of this
+    prompt's instructions. See WEAKNESSES.md and packages/atlas-control/README.md.
     """
     if role not in ROLES:
         role = "broker"

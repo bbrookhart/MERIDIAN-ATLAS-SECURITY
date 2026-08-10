@@ -1,34 +1,89 @@
+"""Agent memory, with provenance (Project 3 / ASI06 — Memory & Context
+Poisoning).
+
+Every stored fact carries where it came from (source), how much it should
+be trusted (trust_tier), which turn wrote it (run_id), and when it expires
+(TTL). load_recent_facts() is scoped to one session_id — this, not trust
+tiering, is what closes the cross-session leak Project 3's Phase A
+red-team run demonstrated live: a fact planted in one session can no
+longer influence a different session's agent turn at all, regardless of
+trust tier.
+
+Trust tiering is the second, narrower defense: content whose source is
+`user_input` or `tool_result` is marked `untrusted` and is never given
+elevated standing in the conversation — it's loaded back as ordinary
+`user`/`tool` role messages, the same as it always was, never promoted to
+a `system` role. `assistant_output` is `trusted`. This module simply never
+provides a code path that could promote untrusted content to system/
+instruction level; there's nothing to bypass because it doesn't exist.
+"""
+
+from __future__ import annotations
+
+import uuid
+
 import asyncpg
 
+DEFAULT_TTL_SECONDS = 3600
 
-async def save_fact(pool: asyncpg.Pool, session_id: str, kind: str, content: str) -> None:
+_SOURCE_BY_KIND = {
+    "user_message": "user_input",
+    "assistant_message": "assistant_output",
+    "tool_result": "tool_result",
+}
+_TRUST_TIER_BY_SOURCE = {
+    "user_input": "untrusted",
+    "assistant_output": "trusted",
+    "tool_result": "untrusted",
+}
+_ROLE_BY_KIND = {
+    "user_message": "user",
+    "assistant_message": "assistant",
+    "tool_result": "tool",
+}
+
+
+async def save_fact(
+    pool: asyncpg.Pool,
+    session_id: str,
+    kind: str,
+    content: str,
+    ttl_seconds: int = DEFAULT_TTL_SECONDS,
+) -> None:
+    source = _SOURCE_BY_KIND.get(kind, "user_input")
+    trust_tier = _TRUST_TIER_BY_SOURCE[source]
+    run_id = uuid.uuid4().hex
     await pool.execute(
-        "INSERT INTO agent_memory (session_id, kind, content) VALUES ($1, $2, $3)",
+        """
+        INSERT INTO agent_memory
+            (session_id, kind, content, source, trust_tier, run_id, expires_at)
+        VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7))
+        """,
         session_id,
         kind,
         content,
+        source,
+        trust_tier,
+        run_id,
+        ttl_seconds,
     )
 
 
-async def load_recent_facts(pool: asyncpg.Pool, limit: int = 20) -> list[dict]:
-    """Load recent conversational memory to seed a new agent turn.
-
-    WEAKNESS (ASI06 — Memory & Context Poisoning): facts are loaded across
-    *all* sessions, not filtered by the current session_id, and carry no
-    provenance (who said it, which session, whether it came from a trusted
-    caller). A fact planted by any user in any session can influence any
-    other session's agent turn. See WEAKNESSES.md.
+async def load_recent_facts(pool: asyncpg.Pool, session_id: str, limit: int = 20) -> list[dict]:
+    """Load recent memory for exactly one session — never across sessions,
+    and never anything past its TTL.
     """
     rows = await pool.fetch(
-        "SELECT kind, content FROM agent_memory ORDER BY created_at DESC LIMIT $1",
+        """
+        SELECT kind, content FROM agent_memory
+        WHERE session_id = $1 AND expires_at > now()
+        ORDER BY created_at DESC
+        LIMIT $2
+        """,
+        session_id,
         limit,
     )
-    role_by_kind = {
-        "user_message": "user",
-        "assistant_message": "assistant",
-        "tool_result": "tool",
-    }
     return [
-        {"role": role_by_kind.get(r["kind"], "user"), "content": r["content"]}
+        {"role": _ROLE_BY_KIND.get(r["kind"], "user"), "content": r["content"]}
         for r in reversed(rows)
     ]

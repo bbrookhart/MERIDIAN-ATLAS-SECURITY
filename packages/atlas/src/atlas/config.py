@@ -17,15 +17,20 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-5"
 
-    mcp_ticketing_url: str = "http://localhost:8801/mcp"
-    mcp_docstore_url: str = "http://localhost:8802/mcp"
+    # atlas-control: the agent has no DB connection or MCP client of its
+    # own for tool execution anymore (Project 3) — every tool invocation,
+    # native or MCP, goes through this service.
+    control_base_url: str = "http://localhost:8100"
 
     seed: int = 1337
     canary_seed: int = 1337
 
+    # Informational only — the enforced value lives in
+    # atlas-control/policy/tool_authorization.rego as integer cents. Kept
+    # here so the system prompt can state an accurate figure; changing this
+    # without also changing the policy changes nothing about what's
+    # actually allowed.
     refund_threshold_usd: float = 500.0
-
-    outbox_dir: str = "var/outbox"
 
 
 settings = Settings()

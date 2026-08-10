@@ -36,5 +36,9 @@ class Settings(BaseSettings):
 
     outbox_dir: str = "var/outbox"
 
+    # Project 4: see atlas.config.Settings.otlp_endpoint for the same
+    # opt-in-only rationale.
+    otlp_endpoint: str | None = None
+
 
 settings = Settings()

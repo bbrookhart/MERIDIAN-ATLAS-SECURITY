@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 
 import asyncpg
 import httpx
+from opentelemetry import trace
 
 from atlas_control import budget, capability, policy
 
@@ -71,6 +72,24 @@ _deviation_log: list[DeviationEvent] = []
 
 def deviation_events() -> list[DeviationEvent]:
     return list(_deviation_log)
+
+
+def _log_deviation(plan_id: str, reason: str, step_index: int | None) -> None:
+    """Records the deviation both in-process (`deviation_events()`, used
+    directly by tests and by anything running in the same Python process)
+    and as a span event on whatever span is active when it happens — which,
+    in the live service, is the FastAPI-auto-instrumented server span for
+    the `/plan/{plan_id}/steps/{step_index}/execute` request (see
+    `atlas_control/app.py`). That's what makes this a detectable event in
+    the trace store, not just a Python-process-local list — the Project 4
+    plan-deviation detector reads it from there, replaying against real
+    exported spans rather than reaching into this module's memory."""
+    _deviation_log.append(DeviationEvent(plan_id, reason, step_index))
+    span = trace.get_current_span()
+    span.add_event(
+        "atlas.plan.deviation",
+        attributes={"plan_id": plan_id, "reason": reason, "step_index": step_index or -1},
+    )
 
 
 def _hash_steps(steps: list[PlanStep]) -> str:
@@ -143,22 +162,20 @@ async def execute_step(
 
     plan = _plans.get(plan_id)
     if plan is None:
-        _deviation_log.append(DeviationEvent(plan_id, "unknown plan_id", step_index))
+        _log_deviation(plan_id, "unknown plan_id", step_index)
         raise PlanDeviationError(f"unknown plan_id {plan_id!r}")
 
     if not (0 <= step_index < len(plan.steps)):
-        _deviation_log.append(DeviationEvent(plan_id, "step_index out of range", step_index))
+        _log_deviation(plan_id, "step_index out of range", step_index)
         raise PlanDeviationError(f"step_index {step_index} out of range for plan {plan_id!r}")
 
     if plan.executed[step_index]:
-        _deviation_log.append(DeviationEvent(plan_id, "step already executed", step_index))
+        _log_deviation(plan_id, "step already executed", step_index)
         raise PlanDeviationError(f"step {step_index} of plan {plan_id!r} already executed")
 
     decision = plan.decisions[step_index]
     if not decision.approved:
-        _deviation_log.append(
-            DeviationEvent(plan_id, f"step denied by policy: {decision.reason}", step_index)
-        )
+        _log_deviation(plan_id, f"step denied by policy: {decision.reason}", step_index)
         raise PlanDeviationError(f"step {step_index} was denied by policy: {decision.reason}")
 
     step = plan.steps[step_index]

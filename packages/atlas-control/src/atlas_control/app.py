@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 import httpx
+from atlas_detect import instrument_fastapi_app
 from fastapi import FastAPI
 
 from atlas_control.db import create_pool
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="atlas-control", lifespan=lifespan)
+    instrument_fastapi_app(app)
     app.include_router(plan_router.router)
     app.include_router(budget_router.router)
     app.include_router(staged_router.router)

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 import httpx
+from atlas_detect import instrument_fastapi_app
 from fastapi import FastAPI
 
 from atlas.db.pool import create_pool
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Atlas", lifespan=lifespan)
+    instrument_fastapi_app(app)
     # WEAKNESS (LLM06:2026 — Unbounded Consumption): no rate-limiting
     # middleware, no per-session token budget, no cost cap is registered
     # here. Every request is served with no throttling. See WEAKNESSES.md.

@@ -2,6 +2,16 @@ networks:
   atlas_internal:
     internal: true # postgres + both MCP servers + atlas-control + seed: no route out, ever
   atlas_egress: {}   # only atlas-api, atlas-control, and seed join this, solely to reach host Ollama
+  # Real Docker behavior discovered live while wiring Project 4: a
+  # container attached *only* to an `internal: true` network never gets
+  # its `ports:` mapping forwarded from the host, even though the
+  # directive is accepted with no error — confirmed by attaching a second
+  # non-internal network to a running container and watching `docker port`
+  # start reporting the mapping. clickhouse/otel-collector need host access
+  # (for test_redaction.py and the replay/scoring/dashboard scripts) but
+  # not actual internet egress, so they get their own network rather than
+  # joining atlas_egress (which is scoped to "needs to reach host Ollama").
+  atlas_observability: {}
 
 services:
   postgres:
@@ -45,6 +55,37 @@ services:
       timeout: 3s
       retries: 30
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    networks: [atlas_internal, atlas_observability]
+    ports:
+      - "127.0.0.1:8123:8123" # HTTP interface — replay/scoring/dashboard scripts query from the host
+    environment:
+      CLICKHOUSE_DB: otel
+      # Lab-only credential (matches the postgres atlas/atlas convention
+      # elsewhere in this compose file) — the image disables network
+      # access for the default user entirely unless a password is set.
+      CLICKHOUSE_PASSWORD: atlas
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.158.0
+    networks: [atlas_internal, atlas_observability]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../atlas-detect/collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4318:4318" # OTLP/HTTP — also used directly by test_redaction.py from the host
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
   seed:
     build:
       context: ../..
@@ -63,6 +104,7 @@ services:
       # recall benchmark exercise both filter strategies against the same
       # running stack without a rebuild.
       ATLAS_RETRIEVAL_MODE: ${ATLAS_RETRIEVAL_MODE:-pre}
+      ATLAS_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,6 +122,7 @@ services:
       ATLAS_CONTROL_OLLAMA_BASE_URL: http://host.docker.internal:11434
       ATLAS_CONTROL_MCP_TICKETING_URL: http://mcp-ticketing:8801/mcp
       ATLAS_CONTROL_MCP_DOCSTORE_URL: http://mcp-docstore:8802/mcp
+      ATLAS_CONTROL_OTLP_ENDPOINT: http://otel-collector:4318
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=2)"]
       interval: 2s
@@ -92,6 +135,8 @@ services:
         condition: service_healthy
       mcp-docstore:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
 
   atlas-api:
     build:

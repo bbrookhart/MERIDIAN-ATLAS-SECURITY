@@ -1,0 +1,54 @@
+# Real otel/opentelemetry-collector-contrib config (v0.158.0, pinned in
+# docker-compose.yml). Redaction happens here, in the transform processor,
+# before the clickhouseexporter writes anything — span EVENT bodies
+# (prompt/completion/query content, see atlas_detect.spans) are scrubbed
+# for canary-shaped tokens and PII patterns; span-level attributes never
+# carry that content in the first place (see atlas_detect.spans's
+# docstring), so they aren't targeted here.
+#
+# Proven with a test, not just configured and trusted: see
+# packages/atlas-detect/tests/test_redaction.py, which sends a synthetic
+# OTLP payload containing a real canary-shaped string and a fake SSN
+# through this exact config (via a live Collector container) and asserts
+# neither lands in ClickHouse.
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  transform/redact:
+    error_mode: ignore
+    trace_statements:
+      - context: spanevent
+        statements:
+          - 'replace_pattern(attributes["content"], "MERIDIAN-CANARY-[0-9a-fA-F-]+", "[REDACTED-CANARY]")'
+          - 'replace_pattern(attributes["content"], "\\d{3}-\\d{2}-\\d{4}", "[REDACTED-SSN]")'
+          - 'replace_pattern(attributes["content"], "DOB:\\s*\\d{4}-\\d{2}-\\d{2}", "[REDACTED-DOB]")'
+
+  batch:
+    timeout: 2s
+
+exporters:
+  clickhouse:
+    endpoint: "tcp://default:atlas@clickhouse:9000?dial_timeout=10s"
+    database: otel
+    ttl: 72h
+    traces_table_name: otel_traces
+    timeout: 5s
+    retry_on_failure:
+      enabled: true
+
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform/redact, batch]
+      exporters: [clickhouse, debug]

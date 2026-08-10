@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     seed: int = 1337
     canary_seed: int = 1337
 
+    # Project 4: OTLP/HTTP endpoint for the Collector (e.g.
+    # http://otel-collector:4318). Unset by default so standalone/test
+    # runs never try to dial a Collector that doesn't exist —
+    # atlas_detect.configure_tracing() creates spans either way, it just
+    # doesn't export them when this is falsy.
+    otlp_endpoint: str | None = None
+
     # Project 2: pre-filter resolves the caller's permitted allowed_roles
     # set before the vector query runs; post-filter runs an unfiltered
     # query and discards unauthorized candidates after. Both are real,

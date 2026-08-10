@@ -1,6 +1,14 @@
 import time
 import uuid
 
+from atlas_detect.semconv import (
+    ATTR_ATLAS_RETRIEVAL_MODE,
+    ATTR_ATLAS_RETRIEVED_CHUNK_IDS,
+    ATTR_ATLAS_ROLE,
+    ATTR_OPERATION_NAME,
+    OP_RETRIEVAL,
+)
+from atlas_detect.spans import record_prompt_event
 from atlas_retrieval import hash_text, wrap_chunk
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel
@@ -10,6 +18,7 @@ from atlas.config import settings
 from atlas.db.retrieval import RetrievedChunk, authorized_search
 from atlas.decision_log import insert_decision_log, list_decisions, update_response_hash
 from atlas.prompts import build_system_prompt
+from atlas.telemetry import tracer
 
 router = APIRouter()
 
@@ -65,14 +74,25 @@ async def rag_query(
     # otherwise drown out any pre-vs-post-filter difference) — this is the
     # number the Phase C benchmark actually compares.
     retrieval_start = time.perf_counter()
-    result = await authorized_search(
-        pool,
-        http_client,
-        settings.control_base_url,
-        embedding,
-        x_atlas_role,
-        settings.retrieval_mode,
-    )
+    with tracer.start_as_current_span(OP_RETRIEVAL) as retrieval_span:
+        retrieval_span.set_attribute(ATTR_OPERATION_NAME, OP_RETRIEVAL)
+        retrieval_span.set_attribute(ATTR_ATLAS_ROLE, x_atlas_role)
+        retrieval_span.set_attribute(ATTR_ATLAS_RETRIEVAL_MODE, settings.retrieval_mode)
+        record_prompt_event(retrieval_span, "retrieval_query", body.query)
+        result = await authorized_search(
+            pool,
+            http_client,
+            settings.control_base_url,
+            embedding,
+            x_atlas_role,
+            settings.retrieval_mode,
+        )
+        # Chunk ids, not chunk bodies — identifiers aren't sensitive
+        # content the way the retrieved text itself is, so this is fine
+        # as a span attribute (searchable), not an event.
+        retrieval_span.set_attribute(
+            ATTR_ATLAS_RETRIEVED_CHUNK_IDS, [c.chunk_id for c in result.chunks]
+        )
     retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
     chunks = result.chunks
 

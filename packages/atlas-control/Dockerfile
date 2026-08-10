@@ -23,6 +23,7 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/packages/atlas-control/src /app/packages/atlas-control/src
 COPY --from=builder /app/packages/atlas-control/policy /app/packages/atlas-control/policy
+COPY --from=builder /app/packages/atlas-detect/src /app/packages/atlas-detect/src
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 ENV ATLAS_CONTROL_POLICY_DIR=/app/packages/atlas-control/policy
 USER atlas

@@ -15,10 +15,12 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "atlas-retrieval",
+    "atlas-detect",
 ]
 
 [tool.uv.sources]
 atlas-retrieval = { workspace = true }
+atlas-detect = { workspace = true }
 
 [dependency-groups]
 dev = [

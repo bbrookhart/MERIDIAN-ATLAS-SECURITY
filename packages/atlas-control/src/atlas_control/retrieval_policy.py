@@ -15,8 +15,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from atlas_detect.semconv import ATTR_ATLAS_POLICY_ALLOW, ATTR_ATLAS_ROLE
+
 from atlas_control.config import settings
 from atlas_control.policy import PolicyEngineError
+from atlas_control.telemetry import tracer
 
 
 @dataclass(frozen=True)
@@ -35,36 +38,44 @@ def _opa_binary() -> str:
 def authorize_retrieval(
     role: str, chunks: list[dict] | None = None, policy_dir: Path | None = None
 ) -> RetrievalAuthzResult:
-    policy_dir = policy_dir or settings.policy_dir
-    input_doc = {"caller": {"role": role}, "chunks": chunks or []}
+    with tracer.start_as_current_span("policy_decision.retrieval") as span:
+        span.set_attribute(ATTR_ATLAS_ROLE, role)
+        span.set_attribute("atlas.policy.mode", "post" if chunks else "pre")
 
-    result = subprocess.run(
-        [
-            _opa_binary(),
-            "eval",
-            "-d",
-            str(policy_dir),
-            "-I",
-            "-f",
-            "json",
-            "data.atlas.retrieval_authz",
-        ],
-        input=json.dumps(input_doc),
-        capture_output=True,
-        text=True,
-        timeout=10,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise PolicyEngineError(f"opa eval failed: {result.stderr or result.stdout}")
+        policy_dir = policy_dir or settings.policy_dir
+        input_doc = {"caller": {"role": role}, "chunks": chunks or []}
 
-    payload = json.loads(result.stdout)
-    try:
-        value = payload["result"][0]["expressions"][0]["value"]
-    except (KeyError, IndexError) as e:
-        raise PolicyEngineError(f"unexpected opa eval output shape: {payload}") from e
+        result = subprocess.run(
+            [
+                _opa_binary(),
+                "eval",
+                "-d",
+                str(policy_dir),
+                "-I",
+                "-f",
+                "json",
+                "data.atlas.retrieval_authz",
+            ],
+            input=json.dumps(input_doc),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise PolicyEngineError(f"opa eval failed: {result.stderr or result.stdout}")
 
-    return RetrievalAuthzResult(
-        visible_roles=sorted(value.get("visible_roles", [])),
-        decisions=value.get("decisions", []),
-    )
+        payload = json.loads(result.stdout)
+        try:
+            value = payload["result"][0]["expressions"][0]["value"]
+        except (KeyError, IndexError) as e:
+            raise PolicyEngineError(f"unexpected opa eval output shape: {payload}") from e
+
+        authz_result = RetrievalAuthzResult(
+            visible_roles=sorted(value.get("visible_roles", [])),
+            decisions=value.get("decisions", []),
+        )
+        denied = [d for d in authz_result.decisions if not d.get("allow", True)]
+        span.set_attribute(ATTR_ATLAS_POLICY_ALLOW, len(denied) == 0)
+        span.set_attribute("atlas.policy.denied_count", len(denied))
+        return authz_result

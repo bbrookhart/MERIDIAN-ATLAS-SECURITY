@@ -15,10 +15,12 @@ dependencies = [
     "pgvector>=0.3.6",
     "mcp>=1.9",
     "pyjwt>=2.9",
+    "atlas-detect",
 ]
 
 [tool.uv.sources]
 atlas-schema = { workspace = true }
+atlas-detect = { workspace = true }
 
 [dependency-groups]
 dev = [

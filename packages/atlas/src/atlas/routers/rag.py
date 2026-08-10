@@ -1,3 +1,4 @@
+import time
 import uuid
 
 from atlas_retrieval import hash_text, wrap_chunk
@@ -29,6 +30,7 @@ class RagChunk(BaseModel):
 class RagResponse(BaseModel):
     reply: str
     retrieved: list[RagChunk]
+    retrieval_ms: float
 
 
 def build_rag_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
@@ -57,6 +59,12 @@ async def rag_query(
     pool = request.app.state.db_pool
 
     [embedding] = await ollama_client.embed(http_client, [body.query])
+
+    # Timed separately from embedding (identical cost either way) and from
+    # the chat completion below (dominates total request latency and would
+    # otherwise drown out any pre-vs-post-filter difference) — this is the
+    # number the Phase C benchmark actually compares.
+    retrieval_start = time.perf_counter()
     result = await authorized_search(
         pool,
         http_client,
@@ -65,6 +73,7 @@ async def rag_query(
         x_atlas_role,
         settings.retrieval_mode,
     )
+    retrieval_ms = (time.perf_counter() - retrieval_start) * 1000
     chunks = result.chunks
 
     # Decision log (Project 2 — the headline deliverable): every retrieval
@@ -100,6 +109,7 @@ async def rag_query(
         retrieved=[
             RagChunk(title=c.title, category=c.category, owner_role=c.owner_role) for c in chunks
         ],
+        retrieval_ms=retrieval_ms,
     )
 
 

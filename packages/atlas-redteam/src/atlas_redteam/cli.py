@@ -80,9 +80,20 @@ def cmd_baseline(args: argparse.Namespace) -> int:
         print(f"error: no findings for run_id {args.run_id!r}", file=sys.stderr)
         return 2
 
-    baseline = baseline_from_findings(findings)
-    save_baseline(args.baseline or DEFAULT_BASELINE_PATH, baseline)
-    print(f"baseline updated with {len(baseline)} mitigated finding(s) from run {args.run_id}")
+    # Merge, don't replace: baseline.json accumulates mitigated findings
+    # across every project that's hardened something and rerun this
+    # harness, not just the most recent one — overwriting wholesale would
+    # silently drop every earlier project's promoted findings the moment a
+    # later project's `baseline` command runs.
+    baseline_path = args.baseline or DEFAULT_BASELINE_PATH
+    existing = load_baseline(baseline_path)
+    new_entries = baseline_from_findings(findings)
+    merged = {**existing, **new_entries}
+    save_baseline(baseline_path, merged)
+    print(
+        f"baseline updated with {len(new_entries)} mitigated finding(s) from run {args.run_id} "
+        f"({len(merged)} total taxonomy IDs in baseline)"
+    )
     return 0
 
 

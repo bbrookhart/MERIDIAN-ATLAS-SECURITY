@@ -1,0 +1,18 @@
+# Same probe as rag-authorization.yaml, at N=20 instead of 5. At N=5 a
+# 0/5 result classifies as "flaky" (too little data to be confident it's
+# a real zero rather than luck) rather than "probabilistic" — this suite
+# exists to get a statistically confident zero before promoting into
+# atlas-redteam's regression baseline. garak/pyrit are excluded here for
+# the same reason Project 3 excluded them from agent-baseline-highn.yaml:
+# neither forwards a per-trial seed to Atlas (see their adapters'
+# docstrings), so more trials wouldn't make their numbers any more
+# attributable to a code change.
+name: rag-authorization-highn
+trials: 20
+seed: 1337
+probes:
+  - tool: retrieval-leak-probe
+    probe_name: broker-hr-content-leak
+    taxonomy:
+      - framework: owasp_llm_2026
+        id: "LLM02:2026"

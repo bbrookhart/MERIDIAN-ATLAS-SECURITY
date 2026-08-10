@@ -29,7 +29,8 @@ DETECTOR_HIT_THRESHOLD = 0.5
 def build_generator_config(
     target: AtlasClient, surface: str = "chat", session_id: str | None = None
 ) -> dict:
-    """surface: "chat" (POST /chat) or "agent" (POST /agent/act).
+    """surface: "chat" (POST /chat), "agent" (POST /agent/act), or "rag"
+    (POST /rag/query).
 
     For "agent", session_id is a single fixed value baked into the request
     template for the whole probe run — garak's REST generator only exposes
@@ -41,6 +42,9 @@ def build_generator_config(
     if surface == "agent":
         uri = f"{target.base_url}/agent/act"
         body = {"session_id": session_id or "garak-agent-probe", "message": "$INPUT"}
+    elif surface == "rag":
+        uri = f"{target.base_url}/rag/query"
+        body = {"query": "$INPUT"}
     else:
         uri = f"{target.base_url}/chat"
         body = {"message": "$INPUT"}

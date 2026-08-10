@@ -255,6 +255,7 @@ version = "0.1.0"
 source = { editable = "packages/atlas" }
 dependencies = [
     { name = "asyncpg" },
+    { name = "atlas-retrieval" },
     { name = "faker" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -274,6 +275,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "asyncpg", specifier = ">=0.30" },
+    { name = "atlas-retrieval", editable = "packages/atlas-retrieval" },
     { name = "faker", specifier = ">=33.0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.28" },
@@ -412,13 +414,27 @@ version = "0.1.0"
 source = { editable = "packages/atlas-retrieval" }
 dependencies = [
     { name = "atlas-schema" },
+    { name = "httpx" },
     { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "atlas-schema", editable = "packages/atlas-schema" },
+    { name = "httpx", specifier = ">=0.28" },
     { name = "pydantic", specifier = ">=2.9" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
 ]
 
 [[package]]

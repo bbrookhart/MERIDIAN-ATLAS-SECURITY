@@ -14,7 +14,11 @@ dependencies = [
     "faker>=33.0",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
+    "atlas-retrieval",
 ]
+
+[tool.uv.sources]
+atlas-retrieval = { workspace = true }
 
 [dependency-groups]
 dev = [

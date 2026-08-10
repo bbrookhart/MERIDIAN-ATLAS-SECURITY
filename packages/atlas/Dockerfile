@@ -12,6 +12,7 @@ RUN useradd --create-home --uid 1000 atlas
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/packages/atlas/src /app/packages/atlas/src
+COPY --from=builder /app/packages/atlas-retrieval/src /app/packages/atlas-retrieval/src
 RUN mkdir -p /app/var/outbox && chown -R atlas:atlas /app/var
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 ARG GIT_SHA=dev

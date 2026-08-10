@@ -85,6 +85,13 @@ def run_probe(target: AtlasClient, spec: dict, trials: int, base_seed: int) -> P
 
         return memory_probe.run(target, spec["probe_name"], taxonomy, trials=trials, seed=base_seed)
 
+    if tool == "retrieval-leak-probe":
+        from atlas_redteam.adapters import retrieval_leak_probe
+
+        return retrieval_leak_probe.run(
+            target, spec["probe_name"], taxonomy, trials=trials, seed=base_seed
+        )
+
     if tool == "excessive-agency-probe":
         from atlas_redteam.adapters import excessive_agency_probe
 

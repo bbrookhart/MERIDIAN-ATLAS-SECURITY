@@ -10,6 +10,8 @@ router = APIRouter()
 
 class RagRequest(BaseModel):
     query: str
+    seed: int | None = None
+    temperature: float | None = None
 
 
 class RagChunk(BaseModel):
@@ -52,7 +54,9 @@ async def rag_query(
         {"role": "system", "content": build_system_prompt(x_atlas_role)},
         {"role": "user", "content": build_rag_prompt(body.query, chunks)},
     ]
-    reply = await ollama_client.chat(http_client, messages)
+    reply = await ollama_client.chat(
+        http_client, messages, seed=body.seed, temperature=body.temperature
+    )
 
     return RagResponse(
         reply=reply.get("content", ""),

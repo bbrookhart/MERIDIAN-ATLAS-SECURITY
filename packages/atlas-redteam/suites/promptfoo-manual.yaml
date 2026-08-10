@@ -1,0 +1,23 @@
+# NOT wired into CI or run by default. promptfoo's `redteam generate`/`run`
+# commands hard-block on an interactive "Work email:" verification prompt
+# before they will do anything — confirmed live against this exact config:
+# the process sits idle (near-zero CPU, no network I/O) waiting on stdin
+# that a non-interactive harness (or a GitHub Actions runner) can never
+# supply. This is promptfoo's own product gate on its redteam feature, not
+# a bug in atlas-redteam's adapter — the config/CLI/parsing code in
+# adapters/promptfoo_adapter.py is real and fixture-tested, just not
+# live-runnable unattended.
+#
+# To use this suite manually, once, after completing promptfoo's email
+# verification interactively yourself:
+#   uv run --package atlas-redteam atlas-redteam run --suite promptfoo-manual
+name: promptfoo-manual
+trials: 5
+seed: 1337
+probes:
+  - tool: promptfoo
+    probe_name: owasp-llm-preset
+    plugins: ["owasp:llm"]
+    taxonomy:
+      - framework: owasp_llm_2026
+        id: "LLM01:2026"

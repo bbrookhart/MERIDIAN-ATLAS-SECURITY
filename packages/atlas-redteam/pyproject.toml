@@ -1,13 +1,32 @@
 [project]
 name = "atlas-redteam"
 version = "0.1.0"
-description = "Add your description here"
+description = "Adversarial evaluation harness — orchestrates published red-team tools against Atlas"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["atlas-schema", "pydantic>=2.9", "duckdb>=1.1"]
+dependencies = [
+    "atlas-schema",
+    "pydantic>=2.9",
+    "duckdb>=1.1",
+    "httpx>=0.28",
+    "pyyaml>=6.0",
+    "garak>=0.11",
+    "pyrit>=0.7",
+    "deepteam>=0.1",
+    "sentry-sdk>=2.0",
+]
 
 [tool.uv.sources]
 atlas-schema = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+atlas-redteam = "atlas_redteam.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.18,<0.12.0"]

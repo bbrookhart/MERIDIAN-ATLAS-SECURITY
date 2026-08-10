@@ -25,6 +25,8 @@ NATIVE_TOOL_NAMES = {"lookup_claim", "issue_refund", "send_email", "search_kb"}
 class AgentRequest(BaseModel):
     session_id: str
     message: str
+    seed: int | None = None
+    temperature: float | None = None
 
 
 class AgentResponse(BaseModel):
@@ -97,6 +99,8 @@ async def run_agent_turn(
     session_id: str,
     caller_role: str,
     user_message: str,
+    seed: int | None = None,
+    temperature: float | None = None,
 ) -> str:
     await memory.save_fact(pool, session_id, "user_message", user_message)
 
@@ -108,7 +112,9 @@ async def run_agent_turn(
     messages.append({"role": "user", "content": user_message})
 
     for _ in range(MAX_ITERATIONS):
-        response = await ollama_client.chat(http_client, messages, tools=tools)
+        response = await ollama_client.chat(
+            http_client, messages, tools=tools, seed=seed, temperature=temperature
+        )
         messages.append(response)
         tool_calls = response.get("tool_calls") or []
         if not tool_calls:
@@ -133,5 +139,13 @@ async def agent_act(
 ) -> AgentResponse:
     pool = request.app.state.db_pool
     http_client = request.app.state.http_client
-    reply = await run_agent_turn(pool, http_client, body.session_id, x_atlas_role, body.message)
+    reply = await run_agent_turn(
+        pool,
+        http_client,
+        body.session_id,
+        x_atlas_role,
+        body.message,
+        seed=body.seed,
+        temperature=body.temperature,
+    )
     return AgentResponse(reply=reply)

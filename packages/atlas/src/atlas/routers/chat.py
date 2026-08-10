@@ -9,6 +9,8 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     message: str
+    seed: int | None = None
+    temperature: float | None = None
 
 
 class ChatResponse(BaseModel):
@@ -27,5 +29,7 @@ async def chat(
         {"role": "system", "content": build_system_prompt(x_atlas_role)},
         {"role": "user", "content": body.message},
     ]
-    reply = await ollama_client.chat(http_client, messages)
+    reply = await ollama_client.chat(
+        http_client, messages, seed=body.seed, temperature=body.temperature
+    )
     return ChatResponse(reply=reply.get("content", ""))

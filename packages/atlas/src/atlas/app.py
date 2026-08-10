@@ -4,7 +4,7 @@ import httpx
 from fastapi import FastAPI
 
 from atlas.db.pool import create_pool
-from atlas.routers import agent, chat, rag, version
+from atlas.routers import agent, chat, ingestion, rag, version
 
 
 @asynccontextmanager
@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router)
     app.include_router(rag.router)
     app.include_router(agent.router)
+    app.include_router(ingestion.router)
     return app
 
 

@@ -11,7 +11,7 @@ import uuid
 
 import asyncpg
 import httpx
-from atlas_retrieval import content_hash, redact_pii
+from atlas_retrieval import content_hash, detect_ingestion_anomaly, redact_pii
 from faker import Faker
 from pgvector.asyncpg import register_vector
 
@@ -163,6 +163,30 @@ async def _embed_all(http_client: httpx.AsyncClient, docs: list[dict]) -> list[l
     return embeddings
 
 
+def _check_corpus_anomalies(docs: list[dict], embeddings: list[list[float]]) -> list[str]:
+    """Ingestion-time anomaly detection (Project 2): flag any document
+    whose embedding sits unusually close to many other documents spanning
+    more roles than expected — the poisoning signature a single document
+    trying to rank for every role's queries would leave. A monitoring
+    signal, logged rather than blocking ingestion (see
+    atlas_retrieval.corpus_integrity.detect_ingestion_anomaly's docstring
+    for why). Expect zero flags on this legitimately-generated synthetic
+    corpus — see scripts/demonstrate_anomaly_detection.py for a live
+    demonstration that the detector actually fires on an adversarial
+    cross-role near-duplicate."""
+    alerts = []
+    for i, (doc, emb) in enumerate(zip(docs, embeddings, strict=True)):
+        existing = [
+            (d["owner_role"], e)
+            for j, (d, e) in enumerate(zip(docs, embeddings, strict=True))
+            if j != i
+        ]
+        result = detect_ingestion_anomaly(existing, emb)
+        if result.flagged:
+            alerts.append(f"{doc['source_doc_id']}: {result.reason}")
+    return alerts
+
+
 async def seed_database() -> None:
     conn = await asyncpg.connect(settings.database_url)
     try:
@@ -173,6 +197,14 @@ async def seed_database() -> None:
 
         async with httpx.AsyncClient() as http_client:
             embeddings = await _embed_all(http_client, docs)
+
+        anomalies = _check_corpus_anomalies(docs, embeddings)
+        if anomalies:
+            print(f"CORPUS INTEGRITY ALERT: {len(anomalies)} anomalous document(s) at ingestion:")
+            for a in anomalies:
+                print(f"  - {a}")
+        else:
+            print("Corpus integrity check: no cross-role embedding anomalies detected.")
 
         await conn.execute("TRUNCATE documents RESTART IDENTITY")
         await conn.executemany(

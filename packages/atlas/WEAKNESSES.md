@@ -67,6 +67,26 @@ precision/recall/MTTD per detector, an honest OWASP/ASI coverage matrix
 with stated blind spots, and two end-to-end incident walkthroughs live
 there.
 
+## Project 5 — assurance & evidence
+
+[`atlas-assurance`](../atlas-assurance/README.md) doesn't mitigate any row
+in this table — it makes the rows that *are* mitigated auditable, and
+keeps them honest over time. Each control above is registered with the
+specific test that exercises it, and the pipeline **refuses to assert a
+control is effective** without a linked, real, passing test result
+(`UnsupportedClaimError`), reporting `not_assessed` instead of inferring.
+Controls whose evidence goes stale past its declared max-age are flagged
+as such rather than staying green.
+
+It also confirms this table's own gaps independently: the register's
+coverage analysis reports 8 of 20 OWASP LLM/ASI categories with no
+control at all — including `LLM10:2026`, which is still an open row
+above. Framework crosswalks (NIST AI RMF, NIST AI 600-1, ISO/IEC 42001,
+CSA AICM, MITRE ATLAS, EU AI Act) and AIVSS-vs-CVSS scoring live there,
+along with a CycloneDX AI-BOM. **Crosswalks are an engineering aid, not a
+compliance determination**, and nothing in this repo makes a compliance
+claim.
+
 ## Canaries
 
 Three `MERIDIAN-CANARY-<uuid>` tokens are planted so exfiltration is

@@ -62,6 +62,13 @@ async def execute_step(plan_id: str, step_index: int, request: Request) -> Execu
     staged_id = None
     if step.tool in staged_commit.STAGED_TOOLS:
         p = plan.get_plan(plan_id)
+        if p is None:
+            # Not reachable today: execute_step above raises PlanDeviationError
+            # for an unknown plan_id, so we only get here with a real plan. Kept
+            # explicit rather than assumed, because the alternative is an
+            # AttributeError on None inside a staged side-effecting tool call —
+            # the worst place in this service to discover a broken invariant.
+            raise HTTPException(status_code=404, detail=f"plan {plan_id} not found")
         action = staged_commit.stage(p.session_id, step.tool, step.args, {"raw": result})
         staged_id = action.commit_id
 

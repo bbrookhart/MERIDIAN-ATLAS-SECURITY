@@ -310,22 +310,32 @@ source = { editable = "packages/atlas-assurance" }
 dependencies = [
     { name = "atlas" },
     { name = "atlas-control" },
-    { name = "atlas-redteam" },
     { name = "atlas-schema" },
     { name = "cyclonedx-python-lib" },
     { name = "duckdb" },
     { name = "pydantic" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "atlas", editable = "packages/atlas" },
     { name = "atlas-control", editable = "packages/atlas-control" },
-    { name = "atlas-redteam", editable = "packages/atlas-redteam" },
     { name = "atlas-schema", editable = "packages/atlas-schema" },
     { name = "cyclonedx-python-lib", specifier = ">=11.11.1" },
     { name = "duckdb", specifier = ">=1.1" },
     { name = "pydantic", specifier = ">=2.9" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
 ]
 
 [[package]]

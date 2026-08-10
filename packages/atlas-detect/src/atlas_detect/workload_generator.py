@@ -17,6 +17,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass
+from functools import partial
 
 import httpx
 
@@ -72,17 +73,27 @@ def generate_benign_traffic(
     instrumented stack, not simulated."""
     trials: list[BenignTrial] = []
     with httpx.Client(base_url=atlas_base_url) as client:
+        # `partial` rather than a lambda with default-argument binding: both
+        # capture the loop variables by value (the point — a bare closure
+        # would send every request with the last role/question), but a
+        # defaulted lambda is opaque to type inference, so `with_retry`'s
+        # generic return type couldn't be resolved.
+        def _post(path: str, payload: dict[str, object], role: str) -> None:
+            client.post(
+                path, json=payload, headers={"X-Atlas-Role": role}, timeout=90
+            ).raise_for_status()
+
         for _ in range(repeats):
             for role, questions in _AGENT_QUESTIONS.items():
                 for question in questions:
                     session_id = f"workload-benign-{uuid.uuid4().hex[:8]}"
                     with_retry(
-                        lambda sid=session_id, q=question, r=role: client.post(
+                        partial(
+                            _post,
                             "/agent/act",
-                            json={"session_id": sid, "message": q, "seed": 1337},
-                            headers={"X-Atlas-Role": r},
-                            timeout=90,
-                        ).raise_for_status()
+                            {"session_id": session_id, "message": question, "seed": 1337},
+                            role,
+                        )
                     )
                     trials.append(BenignTrial("agent", role, session_id, question))
                     if delay_seconds:
@@ -91,12 +102,12 @@ def generate_benign_traffic(
                 for question in questions:
                     session_id = f"workload-benign-{uuid.uuid4().hex[:8]}"
                     with_retry(
-                        lambda sid=session_id, q=question, r=role: client.post(
+                        partial(
+                            _post,
                             "/rag/query",
-                            json={"query": q, "session_id": sid, "seed": 1337},
-                            headers={"X-Atlas-Role": r},
-                            timeout=90,
-                        ).raise_for_status()
+                            {"query": question, "session_id": session_id, "seed": 1337},
+                            role,
+                        )
                     )
                     trials.append(BenignTrial("rag", role, session_id, question))
                     if delay_seconds:

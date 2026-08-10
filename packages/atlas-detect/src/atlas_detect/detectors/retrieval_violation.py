@@ -15,7 +15,7 @@ import httpx
 
 
 def detect(atlas_base_url: str, role: str | None = None, limit: int = 200) -> list[dict]:
-    params = {"limit": limit}
+    params: dict[str, str | int] = {"limit": limit}
     if role:
         params["role"] = role
     resp = httpx.get(f"{atlas_base_url}/retrieval/decisions", params=params, timeout=30)

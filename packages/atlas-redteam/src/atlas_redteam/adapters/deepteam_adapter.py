@@ -24,7 +24,10 @@ import types
 
 if "nntplib" not in sys.modules:  # pragma: no cover — exercised at import time
     _shim = types.ModuleType("nntplib")
-    _shim.NNTPDataError = type("NNTPDataError", (Exception,), {})
+    # Python 3.13 removed nntplib, which deepeval still imports. Setting an
+    # attribute on a synthetic module is the point of the shim; mypy cannot
+    # know ModuleType gained it at runtime.
+    _shim.NNTPDataError = type("NNTPDataError", (Exception,), {})  # type: ignore[attr-defined]
     sys.modules["nntplib"] = _shim
 
 os.environ.setdefault("DEEPTEAM_TELEMETRY_OPT_OUT", "YES")

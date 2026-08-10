@@ -17,8 +17,8 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from atlas_redteam.coverage import ALL_CATEGORIES
 from atlas_schema import Finding
+from atlas_schema.taxonomy import ALL_CATEGORIES
 
 from atlas_assurance.aivss import score_all, top_divergences
 from atlas_assurance.business_translation import top_business_translations

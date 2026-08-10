@@ -6,6 +6,7 @@ and capability.redeem() have both succeeded for this exact step.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import asyncpg
 import httpx
@@ -41,7 +42,7 @@ async def dispatch(
     mcp_routes: dict[str, str],
 ) -> str:
     if tool == "lookup_claim":
-        result = await native.lookup_claim(pool, args["claim_number"])
+        result: Any = await native.lookup_claim(pool, args["claim_number"])
     elif tool == "issue_refund":
         result = await native.issue_refund(args["claim_number"], args["amount_cents"])
     elif tool == "send_email":

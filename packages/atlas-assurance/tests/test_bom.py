@@ -14,6 +14,26 @@ def test_build_bom_produces_valid_cyclonedx_1_5_json() -> None:
     assert errors is None
 
 
+def test_every_library_component_has_a_purl() -> None:
+    """Schema-valid is not the same as scannable.
+
+    The first version of this BOM emitted no PURLs. It validated cleanly
+    against CycloneDX 1.5 and `grype sbom:...` reported "No
+    vulnerabilities found" — while identifying 0 of 298 components. A
+    scanner that cannot identify anything reports clean, which is the
+    most dangerous possible failure mode for a supply-chain control.
+    """
+    bom_json = json.loads(emit_cyclonedx_json(build_bom()))
+    libraries = [c for c in bom_json["components"] if c["type"] == "library"]
+
+    assert libraries, "no library components — check uv.lock parsing"
+    missing = [c["name"] for c in libraries if not c.get("purl")]
+    assert not missing, f"library components without a PURL are unscannable: {missing[:10]}"
+
+    sample = libraries[0]
+    assert sample["purl"].startswith("pkg:pypi/"), sample["purl"]
+
+
 def test_bom_includes_both_real_ollama_models() -> None:
     bom_json = json.loads(emit_cyclonedx_json(build_bom()))
 

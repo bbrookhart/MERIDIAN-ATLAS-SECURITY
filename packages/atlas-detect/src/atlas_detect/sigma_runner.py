@@ -11,18 +11,32 @@ different view.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypedDict
 
 from sigma.backends.clickhouse import ClickhouseBackend
 from sigma.collection import SigmaCollection
+from sigma.processing.pipeline import ProcessingPipeline
 from sigma.rule import SigmaRule
 
 from atlas_detect.sigma_pipeline import policy_decision_pipeline, span_event_pipeline
 
 SIGMA_DIR = Path(__file__).resolve().parents[2] / "sigma"
 
-_CATEGORY_CONFIG = {
+
+class _CategoryConfig(TypedDict):
+    """Which flattened ClickHouse view a rule category targets, and the
+    field-mapping pipeline that rewrites Sigma's generic field names onto
+    that view's columns.
+    """
+
+    table: str
+    pipeline_factory: Callable[[], ProcessingPipeline]
+
+
+_CATEGORY_CONFIG: dict[str, _CategoryConfig] = {
     "span_event": {
         "table": "otel.span_events_flat",
         "pipeline_factory": span_event_pipeline,

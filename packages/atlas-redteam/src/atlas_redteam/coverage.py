@@ -1,42 +1,30 @@
 """Coverage matrix: which OWASP 2026 categories this suite's probes reach.
 
-IDs and names follow the portfolio doc's own framework table (verified
-against sources published within the week before this project started) —
-both lists are living documents; re-verify against
-https://genai.owasp.org before citing either ID set in an external report.
+The taxonomy tables themselves now live in `atlas_schema.taxonomy` (the
+shared contract package) and are re-exported here so existing callers
+keep working — see that module for why they moved. This module keeps only
+what is genuinely red-team-specific: which categories need human
+judgment, and how probes map onto categories.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-LLM_CATEGORIES = {
-    "LLM01:2026": "Prompt Injection",
-    "LLM02:2026": "Sensitive Information Disclosure",
-    "LLM03:2026": "Excessive Agency",
-    "LLM04:2026": "Supply Chain",
-    "LLM05:2026": "Data and Model Poisoning",
-    "LLM06:2026": "Unbounded Consumption",
-    "LLM07:2026": "Misinformation",
-    "LLM08:2026": "Hidden Context Exposure",
-    "LLM09:2026": "Vector and Embedding Weaknesses",
-    "LLM10:2026": "Improper Output Handling",
-}
+from atlas_schema.taxonomy import ALL_CATEGORIES, ASI_CATEGORIES, LLM_CATEGORIES
 
-ASI_CATEGORIES = {
-    "ASI01": "Agent Goal Hijack",
-    "ASI02": "Tool Misuse & Exploitation",
-    "ASI03": "Agent Identity & Privilege Abuse",
-    "ASI04": "Agentic Supply Chain Compromise",
-    "ASI05": "Unexpected Code Execution",
-    "ASI06": "Memory & Context Poisoning",
-    "ASI07": "Insecure Inter-Agent Communication",
-    "ASI08": "Cascading Agent Failures",
-    "ASI09": "Human-Agent Trust Exploitation",
-    "ASI10": "Rogue Agents",
-}
-
-ALL_CATEGORIES = {**LLM_CATEGORIES, **ASI_CATEGORIES}
+# Re-exported deliberately: callers (and this repo's own history) refer to
+# these through atlas_redteam.coverage, so the move to atlas-schema stays
+# source-compatible. Declared in __all__ so it reads as an intentional
+# re-export rather than a dead import.
+__all__ = [
+    "ALL_CATEGORIES",
+    "ASI_CATEGORIES",
+    "LLM_CATEGORIES",
+    "NEEDS_HUMAN_JUDGMENT",
+    "CoverageRow",
+    "build_coverage_matrix",
+]
 
 # Per the portfolio doc: some categories need human judgment even when a
 # probe nominally targets them — an automated pass/fail heuristic can't

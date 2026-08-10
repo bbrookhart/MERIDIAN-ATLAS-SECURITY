@@ -1,7 +1,7 @@
 [project]
 name = "atlas-retrieval"
 version = "0.1.0"
-description = "Add your description here"
+description = "Retrieval authorization boundary — per-role OPA-backed filtering, trust markers, corpus integrity, PII redaction"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = ["atlas-schema", "pydantic>=2.9", "httpx>=0.28"]

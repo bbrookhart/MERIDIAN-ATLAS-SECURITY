@@ -5,6 +5,7 @@ from atlas_detect.semconv import (
     ATTR_ATLAS_RETRIEVAL_MODE,
     ATTR_ATLAS_RETRIEVED_CHUNK_IDS,
     ATTR_ATLAS_ROLE,
+    ATTR_ATLAS_SESSION_ID,
     ATTR_OPERATION_NAME,
     OP_RETRIEVAL,
 )
@@ -77,6 +78,8 @@ async def rag_query(
     with tracer.start_as_current_span(OP_RETRIEVAL) as retrieval_span:
         retrieval_span.set_attribute(ATTR_OPERATION_NAME, OP_RETRIEVAL)
         retrieval_span.set_attribute(ATTR_ATLAS_ROLE, x_atlas_role)
+        if body.session_id:
+            retrieval_span.set_attribute(ATTR_ATLAS_SESSION_ID, body.session_id)
         retrieval_span.set_attribute(ATTR_ATLAS_RETRIEVAL_MODE, settings.retrieval_mode)
         record_prompt_event(retrieval_span, "retrieval_query", body.query)
         result = await authorized_search(

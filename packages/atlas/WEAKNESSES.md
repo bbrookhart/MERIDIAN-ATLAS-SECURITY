@@ -29,8 +29,8 @@ architecture doc — both are living documents; verify against
 | 4 | The agent had one long-lived credential shared across all four tools | *(deleted; was `src/atlas/credentials.py::TOOL_CREDENTIAL`)* | ASI03 — Agent Identity & Privilege Abuse | **mitigated (Project 3)** — replaced by per-invocation, 30s-TTL, single-use capability tokens (`atlas_control.capability`) | A single service-account token is far less setup than per-tool scoped, rotating credentials, especially under a deadline. |
 | 5 | Agent memory persisted across sessions with no provenance on stored facts | `src/atlas/memory.py::load_recent_facts()` | ASI06 — Memory & Context Poisoning | **mitigated (Project 3)** — now scoped to `session_id`, TTL-bounded, and tagged with `source`/`trust_tier` | Persisting "facts the user told us" across sessions makes the assistant feel smarter and more personalized; provenance tagging looks like unnecessary schema overhead until it's exploited. |
 | 6 | MCP tool descriptions were trusted verbatim from the server | *(deleted; was `src/atlas/mcp_client.py::list_remote_tools()`)* | ASI04 — Agentic Supply Chain Compromise (MCP03:2025 — Tool Poisoning) | **mitigated (Project 3)** — moved to `atlas_control.mcp_client` with SHA-256 hash-pinning and drift detection; a changed description is excluded from the planner, not silently forwarded | MCP's value proposition is dynamic tool discovery; hash-pinning or validating descriptions feels like it defeats the point, so most integrations skip it. |
-| 7 | No rate limiting, no token budget, no per-session cost cap | `src/atlas/app.py` (absence of middleware) | LLM06:2026 — Unbounded Consumption | partially mitigated (Project 3) — `atlas_control.budget` enforces a per-session tool-call count and cumulative refund cap as a policy input; no token-spend budget yet | Rate limiting and cost caps are classic "add before it's a real product" infrastructure that internal tools ship without. |
-| 8 | Model output is rendered to a terminal client without sanitization | `src/atlas/cli.py::main()` | LLM10:2026 — Improper Output Handling | open (Project 4/5) | The terminal client is "just an internal debug tool," so escaping or sanitizing model output before printing feels like effort spent on a non-adversarial audience. |
+| 7 | No rate limiting, no token budget, no per-session cost cap | `src/atlas/app.py` (absence of middleware) | LLM06:2026 — Unbounded Consumption | partially mitigated (Project 3), detection added (Project 4) — `atlas_control.budget` enforces a per-session tool-call count and cumulative refund cap as a policy input; no token-spend budget yet. `atlas-detect`'s `cost_asymmetry` detector flags disproportionate token spend after the fact, but that's visibility, not a cap — the underlying enforcement gap is still open | Rate limiting and cost caps are classic "add before it's a real product" infrastructure that internal tools ship without. |
+| 8 | Model output is rendered to a terminal client without sanitization | `src/atlas/cli.py::main()` | LLM10:2026 — Improper Output Handling | still open, detection added (Project 4) — `atlas-detect`'s `ansi_escape_output` Sigma rule alerts on ANSI escape sequences in model output, but `cli.py` still prints raw model output unsanitized; a detection rule is not a fix, and this row stays open until something actually strips or escapes the output before it reaches the terminal | The terminal client is "just an internal debug tool," so escaping or sanitizing model output before printing feels like effort spent on a non-adversarial audience. |
 
 ## Project 2 — retrieval authorization
 
@@ -52,6 +52,20 @@ Weaknesses #3, #4, #5, #6 (and part of #7) are mitigated by
 policy-enforcement service `/agent/act` now calls through for every tool
 invocation. Full before/after architecture, the OPA policy, capability
 tokens, plan-then-execute, and the measured ASR delta live there.
+
+## Project 4 — detection & response
+
+[`atlas-detect`](../atlas-detect/README.md) adds detection for #7 and #8,
+not enforcement — the distinction matters and is kept explicit in both
+rows above rather than marked "mitigated." It also measures, with real
+replayed attack traffic, how well the earlier projects' own structural
+fixes show up as detectable events: e.g. weakness #1's retrieval
+authorization (Project 2) is now visible as a `retrieval_violation`
+detection surface, and weakness #3/#4's policy enforcement (Project 3) is
+visible via the `tool_denied_out_of_scope` Sigma rule. Full measured
+precision/recall/MTTD per detector, an honest OWASP/ASI coverage matrix
+with stated blind spots, and two end-to-end incident walkthroughs live
+there.
 
 ## Canaries
 

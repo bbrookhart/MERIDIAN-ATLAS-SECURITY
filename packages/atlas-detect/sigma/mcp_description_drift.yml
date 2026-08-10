@@ -1,0 +1,27 @@
+title: MCP tool description hash drift
+id: 3e5f7091-2c3d-4e5f-9b2c-3d4e5f607182
+status: experimental
+description: >
+  MCP03:2025 (Tool Poisoning) — atlas_control.mcp_client pins each MCP
+  tool's description hash on first sight and excludes the tool from the
+  planner the moment it changes (Project 3). This rule surfaces that
+  exclusion as a detection event rather than only a log line: an
+  atlas.mcp.description_drift span event means a connected MCP server
+  changed a tool's description underneath an already-established trust
+  pin, which is the recognized signature of an MCP server attempting to
+  poison an agent's tool set after initial discovery.
+references:
+  - packages/atlas-control/src/atlas_control/mcp_client.py
+author: atlas-detect (Project 4)
+date: 2026-08-10
+tags:
+  - attack.persistence
+  - owasp.asi04
+  - owasp.mcp03.2025
+logsource:
+  category: span_event
+detection:
+  selection:
+    EventName: atlas.mcp.description_drift
+  condition: selection
+level: high

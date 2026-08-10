@@ -1,0 +1,27 @@
+title: ANSI escape sequence in model output
+id: 2d4e6f80-1b2c-4d3e-8a1b-2c3d4e5f6071
+status: experimental
+description: >
+  LLM10:2026 (Improper Output Handling) explicitly widened to cover ANSI/
+  terminal escape sequences in model output — a model persuaded into
+  emitting them could manipulate a terminal client that renders its
+  output without sanitizing it (see WEAKNESSES.md weakness #8,
+  atlas/cli.py). Flagged by the Collector before the sequence itself is
+  left in place (unlike the canary/PII patterns, ANSI codes aren't
+  redacted — the detection question is "did the model try this", not
+  "hide this from the backend").
+references:
+  - packages/atlas/WEAKNESSES.md
+  - packages/atlas-detect/collector-config.yaml
+author: atlas-detect (Project 4)
+date: 2026-08-10
+tags:
+  - owasp.llm10.2026
+logsource:
+  category: span_event
+detection:
+  selection:
+    AnsiEscapeDetected: 'true'
+    EventName: gen_ai.content.completion
+  condition: selection
+level: high

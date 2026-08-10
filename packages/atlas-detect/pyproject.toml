@@ -12,24 +12,32 @@ dependencies = [
     "opentelemetry-semantic-conventions==0.65b0",
     "opentelemetry-instrumentation-httpx==0.65b0",
     "opentelemetry-instrumentation-fastapi==0.65b0",
+    "httpx>=0.28",
+]
+
+# Two things are deliberately NOT core dependencies, because atlas-detect's
+# telemetry helpers (semconv/tracing/spans — the only atlas_detect imports
+# the live atlas and atlas-control services actually make) must stay light
+# enough for those services' Docker images to build without them:
+#
+# - atlas-redteam (and its PyRIT/garak/deepteam/torch tree): only the
+#   Phase 3 replay harness needs AtlasClient, imported locally inside
+#   replay.py, run from the host, never inside the atlas/atlas-control
+#   images.
+# - clickhouse-connect/pysigma/pysigma-backend-clickhouse/pyyaml: only the
+#   Phase 2/3 detection tooling (sigma_runner, clickhouse_schema, replay,
+#   score, coverage, dashboard) queries ClickHouse or evaluates Sigma
+#   rules — none of it runs inside the live services either.
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=0.24",
+    "atlas-redteam",
     "clickhouse-connect>=1.6,<2",
     "pysigma>=1.5,<2",
     "pysigma-backend-clickhouse>=1.1,<2",
-    "httpx>=0.28",
     "pyyaml>=6.0",
 ]
-
-# atlas-redteam (and its heavy PyRIT/garak/deepteam/torch dependency tree)
-# is deliberately NOT a core dependency: atlas-detect's telemetry helpers
-# (semconv/tracing/spans) are imported by the live atlas and atlas-control
-# services, and those services' Docker images must not need to build
-# PyRIT's native extensions just to get a tracer. Only the replay harness
-# (Phase 3, run from the host against a live stack, never inside the atlas
-# or atlas-control images) needs atlas-redteam's AtlasClient — it lives in
-# this dev group instead, imported locally inside replay.py, not at
-# atlas_detect's package top level.
-[dependency-groups]
-dev = ["pytest>=9.1.1", "pytest-asyncio>=0.24", "atlas-redteam"]
 
 [tool.uv.sources]
 atlas-schema = { workspace = true }

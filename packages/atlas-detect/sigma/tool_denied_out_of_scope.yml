@@ -1,0 +1,28 @@
+title: Tool invocation denied — out-of-scope for role or over policy threshold
+id: 4f60819a-3d4e-5f60-8172-93a4b5c6d7e8
+status: experimental
+description: >
+  atlas-control's OPA policy (Project 3) denied a tool invocation —
+  ASI03 (Agent Identity & Privilege Abuse) territory: a caller's plan
+  requested a tool outside its role's allowlist, or a refund over
+  threshold, or a session-budget violation. Policy denial means the
+  control held, not that nothing happened — an attempted privilege
+  escalation is a detection-worthy event even when it structurally fails,
+  the same way a firewall-blocked connection attempt still gets logged.
+references:
+  - packages/atlas-control/policy/tool_authorization.rego
+  - packages/atlas-control/src/atlas_control/policy.py
+author: atlas-detect (Project 4)
+date: 2026-08-10
+tags:
+  - attack.privilege_escalation
+  - owasp.asi03
+  - owasp.llm03.2026
+logsource:
+  category: policy_decision
+detection:
+  selection:
+    SpanName: policy_decision.tool
+    PolicyAllow: 'false'
+  condition: selection
+level: medium

@@ -25,6 +25,7 @@ from atlas_detect.semconv import (
     OP_EXECUTE_TOOL,
     OP_INVOKE_AGENT,
 )
+from atlas_detect.spans import record_prompt_event
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel
 
@@ -127,7 +128,14 @@ async def run_agent_turn(
                 with tracer.start_as_current_span(OP_EXECUTE_TOOL) as tool_span:
                     tool_span.set_attribute(ATTR_OPERATION_NAME, OP_EXECUTE_TOOL)
                     tool_span.set_attribute(ATTR_TOOL_NAME, step_info["tool"])
+                    tool_span.set_attribute(ATTR_ATLAS_SESSION_ID, session_id)
                     tool_span.set_attribute("atlas.tool.approved", step_info["approved"])
+                    # Args as an event, not an attribute (same content-vs-
+                    # metadata rule as prompts/completions) — Project 4's
+                    # memory-poisoning detector correlates this against
+                    # earlier untrusted-tier memory content in the same
+                    # session.
+                    record_prompt_event(tool_span, "tool_args", json.dumps(step_info["args"]))
                     if step_info["approved"]:
                         exec_result = await _execute_step(http_client, plan_id, i)
                         content = exec_result["result"]
@@ -159,3 +167,12 @@ async def agent_act(
         temperature=body.temperature,
     )
     return AgentResponse(reply=reply)
+
+
+@router.get("/memory/{session_id}")
+async def memory_audit(request: Request, session_id: str) -> list[dict]:
+    """Audit interface for agent memory, with full provenance — same
+    "make the evidence queryable" pattern as Project 2's
+    GET /retrieval/decisions."""
+    pool = request.app.state.db_pool
+    return await memory.list_memory_with_provenance(pool, session_id)

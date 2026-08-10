@@ -87,3 +87,32 @@ async def load_recent_facts(pool: asyncpg.Pool, session_id: str, limit: int = 20
         {"role": _ROLE_BY_KIND.get(r["kind"], "user"), "content": r["content"]}
         for r in reversed(rows)
     ]
+
+
+async def list_memory_with_provenance(pool: asyncpg.Pool, session_id: str) -> list[dict]:
+    """Every stored fact for one session, with full provenance —
+    including expired rows, unlike load_recent_facts (which is the
+    prompt-assembly path, not an audit path). Project 4's memory-
+    poisoning detector reads this to correlate untrusted-tier writes
+    against later privileged tool calls in the same session."""
+    rows = await pool.fetch(
+        """
+        SELECT kind, content, source, trust_tier, run_id, created_at, expires_at
+        FROM agent_memory
+        WHERE session_id = $1
+        ORDER BY created_at ASC
+        """,
+        session_id,
+    )
+    return [
+        {
+            "kind": r["kind"],
+            "content": r["content"],
+            "source": r["source"],
+            "trust_tier": r["trust_tier"],
+            "run_id": r["run_id"],
+            "created_at": r["created_at"].isoformat(),
+            "expires_at": r["expires_at"].isoformat(),
+        }
+        for r in rows
+    ]

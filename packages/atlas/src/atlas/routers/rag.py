@@ -143,9 +143,12 @@ async def retrieval_decisions(
     since: str | None = None,
     until: str | None = None,
     limit: int = 50,
+    session_id: str | None = None,
 ) -> list[dict]:
     """Query interface for the decision log — EU AI Act Article 12
     record-keeping evidence. See packages/atlas-retrieval/README.md for a
     worked example."""
     pool = request.app.state.db_pool
-    return await list_decisions(pool, role=role, since=since, until=until, limit=limit)
+    return await list_decisions(
+        pool, role=role, since=since, until=until, limit=limit, session_id=session_id
+    )

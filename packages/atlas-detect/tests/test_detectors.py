@@ -149,6 +149,31 @@ def test_retrieval_violation_detects_denied_candidates():
         assert len(f["denied_chunk_ids"]) > 0
 
 
+def test_retrieval_violation_scopes_to_one_session():
+    """Per-session scoping is what lets this detector be scored by the
+    same TP/FP path as every Sigma rule, instead of the old
+    "did any denial happen for this role" special case.
+    """
+    session_id = f"detector-test-retrieval-{uuid.uuid4().hex[:8]}"
+    resp = httpx.post(
+        f"{ATLAS_BASE_URL}/rag/query",
+        json={
+            "query": "employee performance review notes and salary details",
+            "session_id": session_id,
+            "seed": 1337,
+        },
+        headers={"X-Atlas-Role": "broker"},
+        timeout=60,
+    )
+    resp.raise_for_status()
+
+    scoped = retrieval_violation.detect(ATLAS_BASE_URL, session_id=session_id)
+    for f in scoped:
+        assert f["SessionId"] == session_id
+
+    assert retrieval_violation.detect(ATLAS_BASE_URL, session_id="no-such-session-exists") == []
+
+
 def test_memory_poisoning_detects_literal_propagation(ch_client):
     """Plants a distinctive marker via a direct-instruction message (the
     same non-adversarial-phrasing pattern as Project 1's memory_probe.py),

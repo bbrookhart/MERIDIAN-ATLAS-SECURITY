@@ -1,13 +1,21 @@
 """Phase 3 driver: replay the attack corpus, generate benign traffic,
 score every detector, build the coverage matrix — against the real
-running stack. Writes results to phase3_results.json (repo-root-relative
-scratch output, not committed) for the README/dashboard to read.
+running stack.
+
+`--mode` records which ATLAS_RETRIEVAL_MODE the stack is running in and
+picks the output filename accordingly, so the pre- and post-filter runs
+don't overwrite each other. It does *not* set the mode — bring the stack
+up with `ATLAS_RETRIEVAL_MODE=post docker compose ... up -d` first. The
+mode matters because retrieval_violation reads a denial log that only has
+entries in post-filter mode.
 
     uv run --package atlas-detect python packages/atlas-detect/scripts/run_phase3.py
+    uv run --package atlas-detect python packages/atlas-detect/scripts/run_phase3.py --mode post
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -20,10 +28,23 @@ from atlas_detect.score import score_all
 from atlas_detect.workload_generator import generate_benign_traffic
 
 ATLAS_BASE_URL = "http://127.0.0.1:8000"
-OUT_PATH = Path(__file__).resolve().parent / "phase3_results.json"
+SCRIPTS_DIR = Path(__file__).resolve().parent
+
+
+def _out_path(mode: str) -> Path:
+    return SCRIPTS_DIR / ("phase3_results.json" if mode == "pre" else f"phase3_results_{mode}.json")
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--mode",
+        choices=["pre", "post"],
+        default="pre",
+        help="which ATLAS_RETRIEVAL_MODE the running stack is configured with",
+    )
+    args = parser.parse_args()
+    out_path = _out_path(args.mode)
     client = clickhouse_connect.get_client(
         host="127.0.0.1", port=8123, username="default", password="atlas", database="otel"
     )
@@ -44,14 +65,15 @@ def main() -> None:
     matrix = build_matrix(report)
 
     result = {
+        "retrieval_mode": args.mode,
         "attack_trial_count": len(attack_trials),
         "benign_trial_count": len(benign_trials),
         "scores": [asdict(s) for s in report.scores],
         "unmeasurable": report.unmeasurable,
         "coverage_matrix": matrix,
     }
-    OUT_PATH.write_text(json.dumps(result, indent=2, default=str))
-    print(f"Wrote {OUT_PATH}")
+    out_path.write_text(json.dumps(result, indent=2, default=str))
+    print(f"Wrote {out_path}")
 
     for s in report.scores:
         print(

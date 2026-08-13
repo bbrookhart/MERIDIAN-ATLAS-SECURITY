@@ -15,12 +15,12 @@ has already authorized.
 flowchart TB
     subgraph before["Before — Project 0/1 baseline"]
         direction TB
-        U1[User message] --> A1["Atlas /agent/act\n(plans AND executes)"]
-        A1 -- "one shared,\nlong-lived credential" --> T1[lookup_claim]
-        A1 -- "same credential" --> T2["issue_refund\n(threshold only in prompt)"]
+        U1[User message] --> A1["Atlas /agent/act<br/>(plans AND executes)"]
+        A1 -- "one shared,<br/>long-lived credential" --> T1[lookup_claim]
+        A1 -- "same credential" --> T2["issue_refund<br/>(threshold only in prompt)"]
         A1 -- "same credential" --> T3[send_email]
-        A1 -- "same credential" --> T4["MCP tools\n(descriptions trusted verbatim)"]
-        A1 -.-> M1["agent_memory\n(no session scoping)"]
+        A1 -- "same credential" --> T4["MCP tools<br/>(descriptions trusted verbatim)"]
+        A1 -.-> M1["agent_memory<br/>(no session scoping)"]
     end
 ```
 
@@ -28,15 +28,15 @@ flowchart TB
 flowchart TB
     subgraph after["After — Project 3"]
         direction TB
-        U2[User message] --> A2["Atlas /agent/act\n(plans only — no tool code, no credential)"]
-        A2 -- "plan: [{tool, args}, ...]" --> P["atlas-control /plan\nOPA policy check per step\nplan hashed + frozen"]
-        P -- "approved steps only,\nby index" --> X["atlas-control executor\n(owns all tool code + MCP client)"]
-        X -- "30s single-use\ncapability token" --> T5[lookup_claim]
-        X -- "separate token" --> T6["issue_refund\n(refund_threshold_cents\nin Rego, opa test'd)"]
-        X -- "separate token" --> T7["send_email\n(staged, rollback window)"]
-        X -- "separate token" --> T8["MCP tools\n(SHA-pinned, drift = excluded)"]
-        A2 -.-> M2["agent_memory\nscoped to session_id, TTL,\nsource + trust_tier"]
-        X -.->|"deviation attempt:\nunknown plan, bad index,\nreplay, denied step"| DEV["deviation log\n(security event, not silent)"]
+        U2[User message] --> A2["Atlas /agent/act<br/>(plans only — no tool code, no credential)"]
+        A2 -- "plan: [{tool, args}, ...]" --> P["atlas-control /plan<br/>OPA policy check per step<br/>plan hashed + frozen"]
+        P -- "approved steps only,<br/>by index" --> X["atlas-control executor<br/>(owns all tool code + MCP client)"]
+        X -- "30s single-use<br/>capability token" --> T5[lookup_claim]
+        X -- "separate token" --> T6["issue_refund<br/>(refund_threshold_cents<br/>in Rego, opa test'd)"]
+        X -- "separate token" --> T7["send_email<br/>(staged, rollback window)"]
+        X -- "separate token" --> T8["MCP tools<br/>(SHA-pinned, drift = excluded)"]
+        A2 -.-> M2["agent_memory<br/>scoped to session_id, TTL,<br/>source + trust_tier"]
+        X -.->|"deviation attempt:<br/>unknown plan, bad index,<br/>replay, denied step"| DEV["deviation log<br/>(security event, not silent)"]
     end
 ```
 

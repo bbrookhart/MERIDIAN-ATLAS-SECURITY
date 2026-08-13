@@ -26,14 +26,14 @@ flowchart TB
 flowchart TB
     subgraph after["After — Project 4"]
         direction TB
-        U2["User"] --> A2["Atlas\n(OTel-instrumented)"]
-        A2 <--> AC2["atlas-control\n(OTel-instrumented,\nsame TraceId)"]
-        A2 -- "OTLP/HTTP" --> COL["Collector\ntransform/redact\n(flag-then-redact canaries/PII)"]
+        U2["User"] --> A2["Atlas<br/>(OTel-instrumented)"]
+        A2 <--> AC2["atlas-control<br/>(OTel-instrumented,<br/>same TraceId)"]
+        A2 -- "OTLP/HTTP" --> COL["Collector<br/>transform/redact<br/>(flag-then-redact canaries/PII)"]
         AC2 -- "OTLP/HTTP" --> COL
-        COL -- "clickhouseexporter" --> CH[("ClickHouse\notel_traces")]
+        COL -- "clickhouseexporter" --> CH[("ClickHouse<br/>otel_traces")]
         CH --> SIGMA["pySigma rules"]
         CH --> DET["stateful detectors"]
-        SIGMA --> SCORE["score.py\nreplay Project 1's attack corpus,\nmeasure precision/recall/MTTD"]
+        SIGMA --> SCORE["score.py<br/>replay Project 1's attack corpus,<br/>measure precision/recall/MTTD"]
         DET --> SCORE
     end
 ```
@@ -223,18 +223,18 @@ a result to hide behind the flattering one.
 | Detector | TP | FP | FN | Precision | Recall | MTTD |
 |---|---|---|---|---|---|---|
 | Canary token in any egress path | 0 | 0 | 0 | — | — | — |
-| Tool invocation denied (ASI03/LLM03:2026) | 1 | 0 | 4 | 1.00 | 0.20 | 722s |
+| Tool invocation denied (ASI03/LLM03:2026) | 1 | 0 | 4 | 1.00 | 0.20 | 971s |
 | retrieval_violation (LLM02:2026) | 0 | 0 | 5 | — | 0.00 | — |
-| memory_poisoning (ASI06) | 0 | 25 | 5 | 0.00 | 0.00 | — |
+| memory_poisoning (ASI06) | 0 | 0 | 5 | — | 0.00 | — |
 
 **Second run — `ATLAS_RETRIEVAL_MODE=post`:**
 
 | Detector | TP | FP | FN | Precision | Recall | MTTD |
 |---|---|---|---|---|---|---|
 | Canary token in any egress path | 0 | 0 | 0 | — | — | — |
-| Tool invocation denied (ASI03/LLM03:2026) | 1 | 0 | 4 | 1.00 | 0.20 | 899s |
-| **retrieval_violation (LLM02:2026)** | **5** | **0** | **0** | **1.00** | **1.00** | 676s |
-| memory_poisoning (ASI06) | 0 | 25 | 5 | 0.00 | 0.00 | — |
+| Tool invocation denied (ASI03/LLM03:2026) | 1 | 0 | 4 | 1.00 | 0.20 | 1262s |
+| **retrieval_violation (LLM02:2026)** | **5** | **0** | **0** | **1.00** | **1.00** | 1083s |
+| memory_poisoning (ASI06) | 0 | 0 | 5 | — | 0.00 | — |
 
 `tool_denied` reproduced identically across both independent runs (1/0/4),
 which is the closest thing to a repeatability check this corpus supports.
@@ -290,16 +290,42 @@ caught along the way:
   column had always been recorded — only the query interface was missing
   it. Adding the filter deleted the special case and made the number
   comparable to the others.
-- **memory_poisoning: a real technique mismatch, and a real heuristic
-  precision problem.** memory-probe tests *cross-session* leakage (which
-  Project 3's session-scoped memory already prevents structurally); this
-  detector looks for *within-session* propagation of untrusted content
-  into a later tool call — the mapping doesn't actually exercise what the
-  detector catches. Separately, its longest-shared-substring heuristic
-  (`min_overlap_chars=10`) false-positives on ordinary shared formatting
-  between a `search_kb` tool result's JSON blob and a later tool call's
-  arguments (e.g. `"category": "policy"` or repeated address text) — real
-  and reported, not tuned away to look better.
+- **memory_poisoning: 25 false positives fixed; the recall gap is a real
+  technique mismatch that remains.** This detector previously scored
+  **precision 0.00 with 25 false positives** across 65 benign sessions.
+  Investigating what it actually matched found *three* separate causes,
+  none of which was a threshold that needed nudging:
+
+  1. **Wrong threat model.** `user_input` carries
+     `trust_tier="untrusted"`, so a user typing "look up claim CLM-04821"
+     and the agent then calling `lookup_claim` was flagged — that is the
+     intended function of an agent, not ASI06. Now restricted to
+     `tool_result`: content the user did not author.
+  2. **Matching JSON punctuation.** With that fixed, a real session still
+     produced findings whose "evidence" was `", "body": "` — twelve
+     characters of structural boilerplate present in any two JSON
+     documents. Now compares against parsed argument *values*, and
+     requires the shared run to be at least half alphanumeric.
+  3. **User content round-tripping.** A tool result echoing
+     `{"found": false, "claim_number": "CLM-04821"}` still matched,
+     flagging the user's own request back at them. Overlaps that appear
+     in the user's own messages are now discounted.
+
+  Fixing those exposed a *recall* bug too: the genuine case — the model
+  reading `CLM-16875` out of a `search_kb` result and passing it to
+  `lookup_claim`, content the user never typed reaching a privileged call
+  — was missed, because the claim number is 9 characters and the run
+  threshold was 12. Rather than lower the global threshold and re-admit
+  the noise just removed, an *entire argument value* appearing verbatim in
+  untrusted content now counts as propagation regardless of length.
+  Verified on three real live sessions: **true positive → 5 findings,
+  both true-negative cases → 0**.
+
+  **Corpus recall is still 0.00**, and that part is not fixed: memory-probe
+  tests *cross-session* leakage (which Project 3's session-scoped memory
+  already prevents structurally), while this detector looks for
+  *within-session* propagation. The probe doesn't exercise what the
+  detector catches — a genuine mismatch, stated rather than papered over.
 
 ## Coverage matrix
 

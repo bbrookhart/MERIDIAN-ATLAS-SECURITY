@@ -1,0 +1,62 @@
+name: pages
+
+# Publishes the generated evidence reports so they are actually viewable.
+# On github.com these files render as raw HTML source, which means the
+# real artifacts — red-team runs, the detection dashboard, the control
+# register — are invisible to anyone who hasn't cloned the repo.
+#
+# The index page is regenerated here rather than trusted from the commit,
+# so it can't drift from evidence/findings.duckdb.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "evidence/**"
+      - "packages/atlas-assurance/scripts/build_evidence_index.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a half-finished deploy; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  UV_VERSION: "0.11.18"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Sync workspace
+        run: uv sync --package atlas-assurance
+
+      - name: Regenerate evidence index
+        run: |
+          uv run --package atlas-assurance python \
+            packages/atlas-assurance/scripts/build_evidence_index.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: evidence/reports
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

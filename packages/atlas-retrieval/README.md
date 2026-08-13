@@ -18,9 +18,9 @@ flowchart TB
     subgraph before["Before — Project 0/1 baseline"]
         direction TB
         U1["User, any role"] --> A1["Atlas /rag/query"]
-        A1 -- "unfiltered ANN search,\ncaller_role discarded" --> D1[("documents")]
-        D1 -- "top-k, every role's docs\nare candidates" --> A1
-        A1 -- "chunks string-concatenated,\nno provenance marker" --> L1["Ollama LLM"]
+        A1 -- "unfiltered ANN search,<br/>caller_role discarded" --> D1[("documents")]
+        D1 -- "top-k, every role's docs<br/>are candidates" --> A1
+        A1 -- "chunks string-concatenated,<br/>no provenance marker" --> L1["Ollama LLM"]
         L1 --> U1
     end
 ```
@@ -30,11 +30,11 @@ flowchart TB
     subgraph after["After — Project 2"]
         direction TB
         U2["User, role"] --> A2["Atlas /rag/query"]
-        A2 -- "role" --> P["atlas-control /retrieval/authorize\nOPA retrieval_authz, outside the model"]
-        P -- "pre: visible_roles set\npost: per-chunk allow/deny" --> A2
-        A2 -- "pre: filtered by allowed_roles\npost: unfiltered, then discard denied" --> D2[("documents,\nallowed_roles + content_sha256")]
-        A2 -- "content-hash verified,\nwrapped as untrusted retrieved-context" --> L2["Ollama LLM"]
-        A2 -.->|"every request:\ncandidates, decisions, context"| LOG[("retrieval_decisions,\nappend-only, Art.12 evidence")]
+        A2 -- "role" --> P["atlas-control /retrieval/authorize<br/>OPA retrieval_authz, outside the model"]
+        P -- "pre: visible_roles set<br/>post: per-chunk allow/deny" --> A2
+        A2 -- "pre: filtered by allowed_roles<br/>post: unfiltered, then discard denied" --> D2[("documents,<br/>allowed_roles + content_sha256")]
+        A2 -- "content-hash verified,<br/>wrapped as untrusted retrieved-context" --> L2["Ollama LLM"]
+        A2 -.->|"every request:<br/>candidates, decisions, context"| LOG[("retrieval_decisions,<br/>append-only, Art.12 evidence")]
         L2 --> U2
     end
 ```

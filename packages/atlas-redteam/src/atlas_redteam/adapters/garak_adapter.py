@@ -82,7 +82,7 @@ def run_garak_cli(
     seed: int,
     report_prefix: Path,
 ) -> None:
-    subprocess.run(
+    proc = subprocess.run(
         [
             sys.executable,
             "-m",
@@ -102,10 +102,21 @@ def run_garak_cli(
             "--report_prefix",
             str(report_prefix),
         ],
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
+    if proc.returncode != 0:
+        # Raise with garak's own output attached. `check=True` would raise a
+        # CalledProcessError whose message is only the argv — stdout/stderr
+        # are on the exception but never printed, so a garak failure in CI
+        # surfaced as a 25-line traceback ending in "returned non-zero exit
+        # status 1" with no indication of what garak actually objected to.
+        raise RuntimeError(
+            f"garak exited {proc.returncode} for probe {probe_name}\n"
+            f"--- garak stdout ---\n{proc.stdout}\n"
+            f"--- garak stderr ---\n{proc.stderr}"
+        )
 
 
 def parse_report(report_jsonl_path: Path) -> list[TrialResult]:

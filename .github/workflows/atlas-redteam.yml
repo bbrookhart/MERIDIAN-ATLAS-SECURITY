@@ -53,13 +53,40 @@ jobs:
 
       - name: Start Ollama and pull models
         run: |
-          ollama serve &
+          # OLLAMA_HOST must be 0.0.0.0 here, not the 127.0.0.1 default.
+          # The compose services reach Ollama over
+          # host.docker.internal:host-gateway, which on a Linux runner is the
+          # docker0 bridge address (172.17.0.1) — a *different interface* from
+          # loopback. A default-bound `ollama serve` accepts on loopback only,
+          # so every container-to-Ollama call is refused even though the
+          # runner-side probe below succeeds. Docker Desktop on macOS hides
+          # this by proxying host.docker.internal to the host's loopback;
+          # Linux has no such proxy, which is why this only ever broke in CI.
+          #
+          # Scoped to `serve` deliberately: OLLAMA_HOST is also the *client*
+          # target variable, and the pulls below should keep talking to the
+          # default address.
+          OLLAMA_HOST=0.0.0.0:11434 ollama serve &
           for i in $(seq 1 30); do
             curl -sf http://localhost:11434/api/version && break
             sleep 1
           done
           ollama pull llama3.2
           ollama pull nomic-embed-text
+
+      # Proves a *container* can reach Ollama, which the runner-side probe
+      # above cannot tell us. Without this the bind-address failure surfaces
+      # as an httpx.ConnectError traceback from the seed service, buried in
+      # interleaved compose logs, several steps later.
+      - name: Preflight — Ollama reachable from a container
+        run: |
+          if ! docker run --rm \
+            --add-host=host.docker.internal:host-gateway \
+            curlimages/curl:8.11.1 \
+            -sf --max-time 10 http://host.docker.internal:11434/api/version; then
+            echo "::error::Ollama is not reachable at host.docker.internal:11434 from inside a container. Check that ollama serve bound 0.0.0.0 rather than the 127.0.0.1 default."
+            exit 1
+          fi
 
       - name: Bring up Atlas
         working-directory: packages/atlas
@@ -70,6 +97,13 @@ jobs:
             curl -sf http://127.0.0.1:8000/version && break
             sleep 2
           done
+          # The loop above falls through on exhaustion as well as on success,
+          # so re-probe: otherwise a stack that never came up is reported as a
+          # confusing failure in whatever step happens to run next.
+          curl -sf http://127.0.0.1:8000/version >/dev/null || {
+            echo "::error::atlas-api did not become healthy within 120s"
+            exit 1
+          }
 
       - name: Sync workspace
         run: uv sync --package atlas-redteam
@@ -90,10 +124,23 @@ jobs:
             evidence/findings.duckdb
           retention-days: 30
 
+      # Per-service rather than one interleaved dump: a single
+      # `docker compose logs` shreds each Python traceback across
+      # clickhouse-1/postgres-1/atlas-control-1 lines, which is what made the
+      # original seed failure hard to read. `ps -a` first names the service
+      # that actually died (exited containers included).
       - name: Atlas logs (on failure)
         if: failure()
         working-directory: packages/atlas
-        run: docker compose logs --tail 200
+        run: |
+          echo "::group::compose ps"
+          docker compose ps -a
+          echo "::endgroup::"
+          for svc in seed atlas-api atlas-control mcp-ticketing mcp-docstore otel-collector; do
+            echo "::group::$svc"
+            docker compose logs --no-color --no-log-prefix --tail 200 "$svc" || true
+            echo "::endgroup::"
+          done
 
       - name: Tear down Atlas
         if: always()

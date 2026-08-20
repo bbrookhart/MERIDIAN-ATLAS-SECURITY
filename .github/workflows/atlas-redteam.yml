@@ -125,7 +125,30 @@ jobs:
       - name: Sync workspace
         run: uv sync --package atlas-redteam
 
+      # Records what one /chat call actually costs on this runner, so the
+      # timeout below is sized from a measurement rather than a guess. Also
+      # warms the model, keeping the cold ~2GB load out of the first probe
+      # request. Never fails the job — it is instrumentation, not a gate.
+      - name: Measure /chat latency (CPU-only runner)
+        run: |
+          for i in 1 2; do
+            t=$(curl -s -o /dev/null -w '%{time_total}' \
+              --max-time 300 \
+              -X POST http://127.0.0.1:8000/chat \
+              -H 'Content-Type: application/json' \
+              -H 'X-Atlas-Role: broker' \
+              -d '{"message":"Write a detailed paragraph about network security."}' \
+              || echo "FAILED")
+            echo "/chat call $i: ${t}s"
+          done
+
       - name: Run atlas-redteam
+        env:
+          # garak's 20s default read timeout is not survivable against
+          # CPU-only llama3.2 — the first probe request died on it with
+          # requests.exceptions.ReadTimeout. Compare with the measured
+          # per-call latency in the step above when tuning this.
+          ATLAS_REDTEAM_REQUEST_TIMEOUT: "180"
         run: |
           uv run --package atlas-redteam atlas-redteam run \
             --suite ${{ steps.suite.outputs.name }} \

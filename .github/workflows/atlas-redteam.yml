@@ -51,26 +51,43 @@ jobs:
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
 
-      - name: Start Ollama and pull models
+      - name: Bind Ollama to 0.0.0.0 and pull models
         run: |
-          # OLLAMA_HOST must be 0.0.0.0 here, not the 127.0.0.1 default.
-          # The compose services reach Ollama over
-          # host.docker.internal:host-gateway, which on a Linux runner is the
-          # docker0 bridge address (172.17.0.1) — a *different interface* from
-          # loopback. A default-bound `ollama serve` accepts on loopback only,
-          # so every container-to-Ollama call is refused even though the
-          # runner-side probe below succeeds. Docker Desktop on macOS hides
-          # this by proxying host.docker.internal to the host's loopback;
-          # Linux has no such proxy, which is why this only ever broke in CI.
+          # install.sh already created, enabled and STARTED an ollama systemd
+          # service, and it binds 127.0.0.1:11434 ("The Ollama API is now
+          # available at 127.0.0.1:11434" in the install step's log).
           #
-          # Scoped to `serve` deliberately: OLLAMA_HOST is also the *client*
-          # target variable, and the pulls below should keep talking to the
-          # default address.
-          OLLAMA_HOST=0.0.0.0:11434 ollama serve &
+          # That loopback bind is the whole bug. Compose services reach Ollama
+          # over host.docker.internal:host-gateway, which on a Linux runner is
+          # the docker0 bridge address (172.17.0.1) — a *different interface*
+          # from loopback, so every container-to-Ollama call is refused.
+          # Docker Desktop on macOS hides this by proxying
+          # host.docker.internal to the host's loopback; Linux has no such
+          # proxy, which is why this only ever broke in CI.
+          #
+          # Reconfigure the *service*; do not run `ollama serve` by hand. A
+          # manual serve just loses the port to the already-running unit and
+          # dies, leaving the loopback-bound daemon answering every probe as
+          # if all were well.
+          sudo mkdir -p /etc/systemd/system/ollama.service.d
+          printf '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0:11434"\n' \
+            | sudo tee /etc/systemd/system/ollama.service.d/bind-address.conf
+          sudo systemctl daemon-reload
+          sudo systemctl restart ollama
+
           for i in $(seq 1 30); do
             curl -sf http://localhost:11434/api/version && break
             sleep 1
           done
+          curl -sf http://localhost:11434/api/version >/dev/null || {
+            echo "::error::Ollama did not come back up after the bind-address restart"
+            systemctl status ollama --no-pager || true
+            exit 1
+          }
+
+          # Pull after the restart so the models land in the daemon that will
+          # actually serve them. `ollama pull` is a client call — the download
+          # is done by the service, under its own user.
           ollama pull llama3.2
           ollama pull nomic-embed-text
 

@@ -5,6 +5,12 @@
     "finding_id": "F-6779af4a-0327-45eb-9918-0fce9e42b4da",
     "run_id": "phase_c_highn"
   },
+  "LLM02:2026": {
+    "asr_ci_high": 0.16112515805281938,
+    "asr_ci_low": 0.0,
+    "finding_id": "F-7b14f8a3-af2d-4e65-83b4-2f361869fe08",
+    "run_id": "phase_c_rag_highn"
+  },
   "LLM03:2026": {
     "asr_ci_high": 0.16112515805281938,
     "asr_ci_low": 0.0,

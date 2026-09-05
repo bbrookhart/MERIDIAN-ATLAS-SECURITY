@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,24 @@ from atlas_redteam.findings import ProbeRun, TrialResult
 from atlas_redteam.target import AtlasClient
 
 DETECTOR_HIT_THRESHOLD = 0.5
+
+# Per-request ceilings for garak's REST generator, in seconds. Defaults suit
+# GPU-accelerated local inference; ATLAS_REDTEAM_REQUEST_TIMEOUT raises them
+# together for CPU-only environments such as CI.
+DEFAULT_REQUEST_TIMEOUT = 60
+AGENT_REQUEST_TIMEOUT = 120
+
+
+def _request_timeout(surface: str) -> int:
+    """Per-request timeout for `surface`, honoring ATLAS_REDTEAM_REQUEST_TIMEOUT.
+
+    The agent surface keeps its longer ceiling: it runs a multi-step
+    tool-calling loop, so it is slower than the single-call surfaces in any
+    environment, override or not.
+    """
+    override = os.environ.get("ATLAS_REDTEAM_REQUEST_TIMEOUT")
+    base = int(override) if override else DEFAULT_REQUEST_TIMEOUT
+    return max(base, AGENT_REQUEST_TIMEOUT) if surface == "agent" else base
 
 
 def build_generator_config(
@@ -69,7 +88,20 @@ def build_generator_config(
                 "response_json_field": "reply",
                 # /agent/act's multi-step tool-calling loop is much slower
                 # than /chat's single call; garak's default (20s) times out.
-                "request_timeout": 120 if surface == "agent" else 20,
+                #
+                # The single-call surfaces need more than garak's default
+                # too, but only on slow hardware — which is why this went
+                # unnoticed until the harness first ran in CI. A GitHub
+                # ubuntu-latest runner is 2-core and CPU-only ("No NVIDIA/AMD
+                # GPU detected" in the Ollama install log), so one /chat call
+                # covers a cold ~2GB llama3.2 load plus generation of a long
+                # jailbreak response. Measured against a Metal-accelerated
+                # Mac this is comfortably under 20s; in CI it blew straight
+                # through it:
+                #   requests.exceptions.ReadTimeout: ... (read timeout=20)
+                # Overridable so a slower or faster environment can size this
+                # without a code change; the CI workflow sets it explicitly.
+                "request_timeout": _request_timeout(surface),
             }
         }
     }
@@ -82,7 +114,7 @@ def run_garak_cli(
     seed: int,
     report_prefix: Path,
 ) -> None:
-    subprocess.run(
+    proc = subprocess.run(
         [
             sys.executable,
             "-m",
@@ -102,10 +134,21 @@ def run_garak_cli(
             "--report_prefix",
             str(report_prefix),
         ],
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
+    if proc.returncode != 0:
+        # Raise with garak's own output attached. `check=True` would raise a
+        # CalledProcessError whose message is only the argv — stdout/stderr
+        # are on the exception but never printed, so a garak failure in CI
+        # surfaced as a 25-line traceback ending in "returned non-zero exit
+        # status 1" with no indication of what garak actually objected to.
+        raise RuntimeError(
+            f"garak exited {proc.returncode} for probe {probe_name}\n"
+            f"--- garak stdout ---\n{proc.stdout}\n"
+            f"--- garak stderr ---\n{proc.stderr}"
+        )
 
 
 def parse_report(report_jsonl_path: Path) -> list[TrialResult]:

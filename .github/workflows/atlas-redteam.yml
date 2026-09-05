@@ -51,15 +51,59 @@ jobs:
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
 
-      - name: Start Ollama and pull models
+      - name: Bind Ollama to 0.0.0.0 and pull models
         run: |
-          ollama serve &
+          # install.sh already created, enabled and STARTED an ollama systemd
+          # service, and it binds 127.0.0.1:11434 ("The Ollama API is now
+          # available at 127.0.0.1:11434" in the install step's log).
+          #
+          # That loopback bind is the whole bug. Compose services reach Ollama
+          # over host.docker.internal:host-gateway, which on a Linux runner is
+          # the docker0 bridge address (172.17.0.1) — a *different interface*
+          # from loopback, so every container-to-Ollama call is refused.
+          # Docker Desktop on macOS hides this by proxying
+          # host.docker.internal to the host's loopback; Linux has no such
+          # proxy, which is why this only ever broke in CI.
+          #
+          # Reconfigure the *service*; do not run `ollama serve` by hand. A
+          # manual serve just loses the port to the already-running unit and
+          # dies, leaving the loopback-bound daemon answering every probe as
+          # if all were well.
+          sudo mkdir -p /etc/systemd/system/ollama.service.d
+          printf '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0:11434"\n' \
+            | sudo tee /etc/systemd/system/ollama.service.d/bind-address.conf
+          sudo systemctl daemon-reload
+          sudo systemctl restart ollama
+
           for i in $(seq 1 30); do
             curl -sf http://localhost:11434/api/version && break
             sleep 1
           done
+          curl -sf http://localhost:11434/api/version >/dev/null || {
+            echo "::error::Ollama did not come back up after the bind-address restart"
+            systemctl status ollama --no-pager || true
+            exit 1
+          }
+
+          # Pull after the restart so the models land in the daemon that will
+          # actually serve them. `ollama pull` is a client call — the download
+          # is done by the service, under its own user.
           ollama pull llama3.2
           ollama pull nomic-embed-text
+
+      # Proves a *container* can reach Ollama, which the runner-side probe
+      # above cannot tell us. Without this the bind-address failure surfaces
+      # as an httpx.ConnectError traceback from the seed service, buried in
+      # interleaved compose logs, several steps later.
+      - name: Preflight — Ollama reachable from a container
+        run: |
+          if ! docker run --rm \
+            --add-host=host.docker.internal:host-gateway \
+            curlimages/curl:8.11.1 \
+            -sf --max-time 10 http://host.docker.internal:11434/api/version; then
+            echo "::error::Ollama is not reachable at host.docker.internal:11434 from inside a container. Check that ollama serve bound 0.0.0.0 rather than the 127.0.0.1 default."
+            exit 1
+          fi
 
       - name: Bring up Atlas
         working-directory: packages/atlas
@@ -70,11 +114,41 @@ jobs:
             curl -sf http://127.0.0.1:8000/version && break
             sleep 2
           done
+          # The loop above falls through on exhaustion as well as on success,
+          # so re-probe: otherwise a stack that never came up is reported as a
+          # confusing failure in whatever step happens to run next.
+          curl -sf http://127.0.0.1:8000/version >/dev/null || {
+            echo "::error::atlas-api did not become healthy within 120s"
+            exit 1
+          }
 
       - name: Sync workspace
         run: uv sync --package atlas-redteam
 
+      # Records what one /chat call actually costs on this runner, so the
+      # timeout below is sized from a measurement rather than a guess. Also
+      # warms the model, keeping the cold ~2GB load out of the first probe
+      # request. Never fails the job — it is instrumentation, not a gate.
+      - name: Measure /chat latency (CPU-only runner)
+        run: |
+          for i in 1 2; do
+            t=$(curl -s -o /dev/null -w '%{time_total}' \
+              --max-time 300 \
+              -X POST http://127.0.0.1:8000/chat \
+              -H 'Content-Type: application/json' \
+              -H 'X-Atlas-Role: broker' \
+              -d '{"message":"Write a detailed paragraph about network security."}' \
+              || echo "FAILED")
+            echo "/chat call $i: ${t}s"
+          done
+
       - name: Run atlas-redteam
+        env:
+          # garak's 20s default read timeout is not survivable against
+          # CPU-only llama3.2 — the first probe request died on it with
+          # requests.exceptions.ReadTimeout. Compare with the measured
+          # per-call latency in the step above when tuning this.
+          ATLAS_REDTEAM_REQUEST_TIMEOUT: "180"
         run: |
           uv run --package atlas-redteam atlas-redteam run \
             --suite ${{ steps.suite.outputs.name }} \
@@ -90,10 +164,23 @@ jobs:
             evidence/findings.duckdb
           retention-days: 30
 
+      # Per-service rather than one interleaved dump: a single
+      # `docker compose logs` shreds each Python traceback across
+      # clickhouse-1/postgres-1/atlas-control-1 lines, which is what made the
+      # original seed failure hard to read. `ps -a` first names the service
+      # that actually died (exited containers included).
       - name: Atlas logs (on failure)
         if: failure()
         working-directory: packages/atlas
-        run: docker compose logs --tail 200
+        run: |
+          echo "::group::compose ps"
+          docker compose ps -a
+          echo "::endgroup::"
+          for svc in seed atlas-api atlas-control mcp-ticketing mcp-docstore otel-collector; do
+            echo "::group::$svc"
+            docker compose logs --no-color --no-log-prefix --tail 200 "$svc" || true
+            echo "::endgroup::"
+          done
 
       - name: Tear down Atlas
         if: always()

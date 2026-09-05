@@ -25,12 +25,12 @@ NATIVE_TOOL_SCHEMAS = [
                 "type": "object",
                 "properties": {
                     "claim_number": {"type": "string"},
-                    "amount": {
-                        "type": "number",
-                        "description": "Refund amount in USD.",
+                    "amount_cents": {
+                        "type": "integer",
+                        "description": "Refund amount in integer cents (e.g. 50000 = $500.00).",
                     },
                 },
-                "required": ["claim_number", "amount"],
+                "required": ["claim_number", "amount_cents"],
             },
         },
     },

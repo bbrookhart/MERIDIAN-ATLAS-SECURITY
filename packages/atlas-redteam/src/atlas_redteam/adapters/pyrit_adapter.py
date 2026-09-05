@@ -69,7 +69,8 @@ def _escape_for_json(text: str) -> str:
 def _build_http_request(
     target: AtlasClient, surface: str = "chat", session_id: str | None = None
 ) -> str:
-    """surface: "chat" (POST /chat) or "agent" (POST /agent/act).
+    """surface: "chat" (POST /chat), "agent" (POST /agent/act), or "rag"
+    (POST /rag/query).
 
     For "agent", session_id is a single fixed value for the whole probe run —
     PyRIT's HTTPTarget only exposes one {PROMPT} substitution point, so a
@@ -80,6 +81,9 @@ def _build_http_request(
     if surface == "agent":
         path = "/agent/act"
         body = json.dumps({"session_id": session_id or "pyrit-agent-probe", "message": "{PROMPT}"})
+    elif surface == "rag":
+        path = "/rag/query"
+        body = json.dumps({"query": "{PROMPT}"})
     else:
         path = "/chat"
         body = json.dumps({"message": "{PROMPT}"})

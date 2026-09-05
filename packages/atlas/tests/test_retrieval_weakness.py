@@ -14,13 +14,27 @@ class FakePool:
 
 
 async def test_search_does_not_filter_by_caller_role():
-    """WEAKNESS (LLM02:2026): search() must not scope results to caller_role.
-
-    This test fails the moment someone "fixes" the weakness by adding a
-    WHERE owner_role clause — which is the point: that fix belongs in a
-    later project, not here.
+    """This low-level helper is intentionally still a plain, unfiltered
+    vector query after Project 2 (see its docstring) — the authorization
+    boundary lives one layer up, in routers/rag.py's pre/post-filter
+    orchestration, which decides *which* SQL runs and *who* gets to see the
+    result. This test documents that `search()` itself carries no filter,
+    so nobody mistakes it for the enforcement point. The real regression
+    guard for "a broker can't actually see HR content" lives in
+    test_retrieval_authorization.py, against the orchestrator.
     """
-    rows = [{"title": "HR record", "body": "salary info", "category": "hr", "owner_role": "hr"}]
+    rows = [
+        {
+            "id": 1,
+            "title": "HR record",
+            "body": "salary info",
+            "category": "hr",
+            "owner_role": "hr",
+            "allowed_roles": ["hr"],
+            "source_doc_id": "src-hr-00001",
+            "content_sha256": "deadbeef",
+        }
+    ]
     pool = FakePool(rows)
 
     results = await search(pool, [0.1, 0.2, 0.3], caller_role="broker", limit=5)

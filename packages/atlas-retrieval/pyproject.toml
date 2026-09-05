@@ -4,10 +4,16 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["atlas-schema", "pydantic>=2.9"]
+dependencies = ["atlas-schema", "pydantic>=2.9", "httpx>=0.28"]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=0.24"]
 
 [tool.uv.sources]
 atlas-schema = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["uv_build>=0.11.18,<0.12.0"]

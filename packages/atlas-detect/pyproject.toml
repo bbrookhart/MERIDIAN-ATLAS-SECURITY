@@ -1,13 +1,42 @@
 [project]
 name = "atlas-detect"
 version = "0.1.0"
-description = "Add your description here"
+description = "Project 4 — telemetry, detection content, and measured detection efficacy for Atlas"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["atlas-schema", "pydantic>=2.9"]
+dependencies = [
+    "atlas-schema",
+    "pydantic>=2.9",
+    "opentelemetry-sdk>=1.44,<2",
+    "opentelemetry-exporter-otlp-proto-http>=1.44,<2",
+    "opentelemetry-semantic-conventions==0.65b0",
+    "opentelemetry-instrumentation-httpx==0.65b0",
+    "opentelemetry-instrumentation-fastapi==0.65b0",
+    "clickhouse-connect>=1.6,<2",
+    "pysigma>=1.5,<2",
+    "pysigma-backend-clickhouse>=1.1,<2",
+    "httpx>=0.28",
+    "pyyaml>=6.0",
+]
+
+# atlas-redteam (and its heavy PyRIT/garak/deepteam/torch dependency tree)
+# is deliberately NOT a core dependency: atlas-detect's telemetry helpers
+# (semconv/tracing/spans) are imported by the live atlas and atlas-control
+# services, and those services' Docker images must not need to build
+# PyRIT's native extensions just to get a tracer. Only the replay harness
+# (Phase 3, run from the host against a live stack, never inside the atlas
+# or atlas-control images) needs atlas-redteam's AtlasClient — it lives in
+# this dev group instead, imported locally inside replay.py, not at
+# atlas_detect's package top level.
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=0.24", "atlas-redteam"]
 
 [tool.uv.sources]
 atlas-schema = { workspace = true }
+atlas-redteam = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["uv_build>=0.11.18,<0.12.0"]

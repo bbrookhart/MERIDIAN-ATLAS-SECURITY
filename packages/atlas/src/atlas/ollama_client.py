@@ -9,8 +9,21 @@ a key: the Anthropic key, if used, comes only from ATLAS_ANTHROPIC_API_KEY.
 from typing import Any
 
 import httpx
+from atlas_detect.semconv import (
+    ATTR_OPERATION_NAME,
+    ATTR_REQUEST_MODEL,
+    ATTR_REQUEST_SEED,
+    ATTR_RESPONSE_MODEL,
+    ATTR_USAGE_INPUT_TOKENS,
+    ATTR_USAGE_OUTPUT_TOKENS,
+    OP_CHAT,
+    OP_EMBEDDINGS,
+)
+from atlas_detect.spans import record_completion_event, record_prompt_event
+from opentelemetry import trace
 
 from atlas.config import settings
+from atlas.telemetry import tracer
 
 Message = dict[str, Any]
 ToolSchema = dict[str, Any]
@@ -29,9 +42,30 @@ async def chat(
     the red-team harness to make individual trials replayable) — omitted,
     generation is non-deterministic as before.
     """
-    if settings.model_provider == "anthropic":
-        return await _chat_anthropic(client, messages, tools, temperature)
-    return await _chat_ollama(client, messages, tools, seed, temperature)
+    model = (
+        settings.anthropic_model
+        if settings.model_provider == "anthropic"
+        else settings.ollama_chat_model
+    )
+    with tracer.start_as_current_span(f"{OP_CHAT} {model}") as span:
+        span.set_attribute(ATTR_OPERATION_NAME, OP_CHAT)
+        span.set_attribute(ATTR_REQUEST_MODEL, model)
+        if seed is not None:
+            span.set_attribute(ATTR_REQUEST_SEED, seed)
+        for m in messages:
+            content = m.get("content")
+            if content:
+                record_prompt_event(span, m.get("role", "unknown"), content)
+
+        if settings.model_provider == "anthropic":
+            result = await _chat_anthropic(client, messages, tools, temperature)
+        else:
+            result = await _chat_ollama(client, messages, tools, seed, temperature)
+
+        reply_content = result.get("content")
+        if reply_content:
+            record_completion_event(span, reply_content)
+        return result
 
 
 async def _chat_ollama(
@@ -57,7 +91,14 @@ async def _chat_ollama(
         payload["options"] = options
     resp = await client.post(f"{settings.ollama_base_url}/api/chat", json=payload, timeout=120)
     resp.raise_for_status()
-    return resp.json()["message"]
+    body = resp.json()
+    span = trace.get_current_span()
+    span.set_attribute(ATTR_RESPONSE_MODEL, body.get("model", settings.ollama_chat_model))
+    if "prompt_eval_count" in body:
+        span.set_attribute(ATTR_USAGE_INPUT_TOKENS, body["prompt_eval_count"])
+    if "eval_count" in body:
+        span.set_attribute(ATTR_USAGE_OUTPUT_TOKENS, body["eval_count"])
+    return body["message"]
 
 
 async def _chat_anthropic(
@@ -112,10 +153,16 @@ async def _chat_anthropic(
 
 
 async def embed(client: httpx.AsyncClient, texts: list[str]) -> list[list[float]]:
-    resp = await client.post(
-        f"{settings.ollama_base_url}/api/embed",
-        json={"model": settings.ollama_embed_model, "input": texts},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()["embeddings"]
+    with tracer.start_as_current_span(f"{OP_EMBEDDINGS} {settings.ollama_embed_model}") as span:
+        span.set_attribute(ATTR_OPERATION_NAME, OP_EMBEDDINGS)
+        span.set_attribute(ATTR_REQUEST_MODEL, settings.ollama_embed_model)
+        for text in texts:
+            record_prompt_event(span, "embedding_input", text)
+
+        resp = await client.post(
+            f"{settings.ollama_base_url}/api/embed",
+            json={"model": settings.ollama_embed_model, "input": texts},
+            timeout=120,
+        )
+        resp.raise_for_status()
+        return resp.json()["embeddings"]

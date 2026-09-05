@@ -27,6 +27,7 @@ from typing import Any
 import httpx2
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
+from opentelemetry import trace
 
 logger = logging.getLogger("atlas_control.mcp_trust")
 
@@ -77,6 +78,19 @@ def _check_and_pin(server_url: str, tool_name: str, description: str) -> bool:
             server_url,
             pinned[:12],
             observed[:12],
+        )
+        # Same rationale as plan.py's _log_deviation: a span event makes
+        # this a detectable trace-store record (Project 4's MCP-drift
+        # Sigma rule), not just a Python-process-local list.
+        span = trace.get_current_span()
+        span.add_event(
+            "atlas.mcp.description_drift",
+            attributes={
+                "server_url": server_url,
+                "tool_name": tool_name,
+                "pinned_hash": pinned,
+                "observed_hash": observed,
+            },
         )
         return False
 

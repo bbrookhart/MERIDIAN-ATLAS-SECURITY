@@ -1,10 +1,35 @@
 [project]
 name = "atlas"
 version = "0.1.0"
-description = "Add your description here"
+description = "Atlas — Meridian Mutual's internal AI assistant (intentionally vulnerable lab target)"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "httpx>=0.28",
+    "asyncpg>=0.30",
+    "pgvector>=0.3.6",
+    "mcp>=1.9",
+    "faker>=33.0",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+atlas-seed = "atlas.seed:main"
+atlas-chat = "atlas.cli:main"
+atlas-mcp-ticketing = "atlas.mcp_servers.ticketing:main"
+atlas-mcp-docstore = "atlas.mcp_servers.docstore:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["uv_build>=0.11.18,<0.12.0"]

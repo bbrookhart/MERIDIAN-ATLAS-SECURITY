@@ -4,14 +4,14 @@
 
 **Five surfaces of one AI system — attacked, controlled, retested, and mapped to evidence.**
 
-<!-- Once published, add the CI badge (replace OWNER/REPO):
-[![ci](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml) -->
+[![ci](https://github.com/bbrookhart/meridian-atlas-security/actions/workflows/ci.yml/badge.svg)](https://github.com/bbrookhart/meridian-atlas-security/actions/workflows/ci.yml)
+[![pages](https://github.com/bbrookhart/meridian-atlas-security/actions/workflows/pages.yml/badge.svg)](https://bbrookhart.github.io/meridian-atlas-security/)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.13](https://img.shields.io/badge/python-3.13-3776AB.svg)](https://www.python.org/)
 [![OWASP LLM Top 10 2026](https://img.shields.io/badge/OWASP-LLM%20Top%2010%202026-000000.svg)](https://genai.owasp.org)
 [![OWASP Agentic Top 10](https://img.shields.io/badge/OWASP-Agentic%20(ASI)%20Top%2010-000000.svg)](https://genai.owasp.org)
 
-[Live evidence](#the-evidence) · [Threat model](THREAT-MODEL.md) · [Security policy](SECURITY.md) · [Projects](#whats-here)
+**[📊 Live evidence reports](https://bbrookhart.github.io/meridian-atlas-security/)** · [Threat model](THREAT-MODEL.md) · [Security policy](SECURITY.md) · [Projects](#whats-here)
 
 </div>
 
@@ -66,7 +66,7 @@ Wilson 95% CIs; `N` is trial count.
 | LLM02:2026 | Cross-role retrieval, broker → HR documents | `1.000` (0.566–1.000) N=5 | **`0.000`** (0.000–0.161) N=20 | OPA role visibility + pre-filter `authorized_search()` |
 | ASI06 | Cross-session memory leak | `0.200` (0.036–0.624) N=5 | **`0.000`** (0.000–0.161) N=20 | Session-scoped, TTL-bounded, provenance-tagged memory |
 
-<sub>Backing runs: [`phase_a_agent_baseline`](evidence/reports/phase_a_agent_baseline.html) → [`phase_c_highn`](evidence/reports/phase_c_highn.html) · [`phase_a_rag_authorization`](evidence/reports/phase_a_rag_authorization.html) → [`phase_c_rag_highn`](evidence/reports/phase_c_rag_highn.html)</sub>
+<sub>Backing runs, viewable as rendered reports: [`phase_a_agent_baseline`](https://bbrookhart.github.io/meridian-atlas-security/phase_a_agent_baseline.html) → [`phase_c_highn`](https://bbrookhart.github.io/meridian-atlas-security/phase_c_highn.html) · [`phase_a_rag_authorization`](https://bbrookhart.github.io/meridian-atlas-security/phase_a_rag_authorization.html) → [`phase_c_rag_highn`](https://bbrookhart.github.io/meridian-atlas-security/phase_c_rag_highn.html) · [all reports](https://bbrookhart.github.io/meridian-atlas-security/)</sub>
 
 ### The rows that are not wins
 

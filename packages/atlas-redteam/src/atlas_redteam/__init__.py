@@ -1,2 +1,1 @@
-def hello() -> str:
-    return "Hello from atlas-redteam!"
+"""atlas-redteam — orchestrates published AI red-team tools against Atlas."""

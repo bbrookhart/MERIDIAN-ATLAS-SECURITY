@@ -20,16 +20,26 @@ async def chat(
     client: httpx.AsyncClient,
     messages: list[Message],
     tools: list[ToolSchema] | None = None,
+    seed: int | None = None,
+    temperature: float | None = None,
 ) -> Message:
+    """Send a chat request to the configured model provider.
+
+    `seed`/`temperature` are an optional reproducibility passthrough (used by
+    the red-team harness to make individual trials replayable) — omitted,
+    generation is non-deterministic as before.
+    """
     if settings.model_provider == "anthropic":
-        return await _chat_anthropic(client, messages, tools)
-    return await _chat_ollama(client, messages, tools)
+        return await _chat_anthropic(client, messages, tools, temperature)
+    return await _chat_ollama(client, messages, tools, seed, temperature)
 
 
 async def _chat_ollama(
     client: httpx.AsyncClient,
     messages: list[Message],
     tools: list[ToolSchema] | None,
+    seed: int | None,
+    temperature: float | None,
 ) -> Message:
     payload: dict[str, Any] = {
         "model": settings.ollama_chat_model,
@@ -38,6 +48,13 @@ async def _chat_ollama(
     }
     if tools:
         payload["tools"] = tools
+    options: dict[str, Any] = {}
+    if seed is not None:
+        options["seed"] = seed
+    if temperature is not None:
+        options["temperature"] = temperature
+    if options:
+        payload["options"] = options
     resp = await client.post(f"{settings.ollama_base_url}/api/chat", json=payload, timeout=120)
     resp.raise_for_status()
     return resp.json()["message"]
@@ -47,6 +64,7 @@ async def _chat_anthropic(
     client: httpx.AsyncClient,
     messages: list[Message],
     tools: list[ToolSchema] | None,
+    temperature: float | None,
 ) -> Message:
     if not settings.anthropic_api_key:
         raise RuntimeError("ATLAS_ANTHROPIC_API_KEY is not set")
@@ -59,6 +77,8 @@ async def _chat_anthropic(
     }
     if system:
         payload["system"] = system
+    if temperature is not None:
+        payload["temperature"] = temperature
     if tools:
         payload["tools"] = [
             {

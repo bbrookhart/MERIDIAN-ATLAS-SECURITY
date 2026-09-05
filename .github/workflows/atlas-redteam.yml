@@ -1,0 +1,101 @@
+name: atlas-redteam
+
+on:
+  pull_request:
+    paths:
+      - "packages/atlas/**"
+      - "packages/atlas-redteam/**"
+      - "packages/atlas-schema/**"
+  schedule:
+    # Nightly full suite, 03:00 UTC.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Suite to run"
+        default: "fast"
+        type: choice
+        options: [fast, full]
+
+env:
+  UV_VERSION: "0.11.18"
+
+jobs:
+  redteam:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine suite
+        id: suite
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "name=full" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.suite }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=fast" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Install Node 22 (promptfoo requires >=22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama and pull models
+        run: |
+          ollama serve &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/version && break
+            sleep 1
+          done
+          ollama pull llama3.2
+          ollama pull nomic-embed-text
+
+      - name: Bring up Atlas
+        working-directory: packages/atlas
+        run: |
+          export GIT_SHA=$(git rev-parse HEAD)
+          docker compose up --build -d
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/version && break
+            sleep 2
+          done
+
+      - name: Sync workspace
+        run: uv sync --package atlas-redteam
+
+      - name: Run atlas-redteam
+        run: |
+          uv run --package atlas-redteam atlas-redteam run \
+            --suite ${{ steps.suite.outputs.name }} \
+            --target http://127.0.0.1:8000
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-redteam-evidence-${{ github.run_id }}
+          path: |
+            evidence/reports/
+            evidence/findings.duckdb
+          retention-days: 30
+
+      - name: Atlas logs (on failure)
+        if: failure()
+        working-directory: packages/atlas
+        run: docker compose logs --tail 200
+
+      - name: Tear down Atlas
+        if: always()
+        working-directory: packages/atlas
+        run: docker compose down

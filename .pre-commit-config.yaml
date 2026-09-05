@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.2
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: block-canary-values
+        name: Block canary values in staged diffs
+        entry: >-
+          bash -c 'if git diff --cached | grep -qE "MERIDIAN-CANARY-[0-9a-f]";
+          then echo "ERROR staged diff contains a MERIDIAN-CANARY value -- canary values must never be committed.";
+          exit 1; fi'
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

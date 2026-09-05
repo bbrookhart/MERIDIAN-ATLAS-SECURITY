@@ -278,7 +278,7 @@ uncovered-reason and unmeasurable-reason string in
 |---|---|---|
 | LLM02:2026 (retrieval_violation), LLM03:2026/ASI03 (tool-denial), ASI06 (memory_poisoning) — recall reported above, honestly low | LLM06:2026 (cost_asymmetry), LLM08:2026 (canary), LLM10:2026 (ANSI), ASI01 (plan_deviation, tool_sequence_anomaly), ASI04 (MCP drift) | LLM01:2026, LLM04:2026, LLM05:2026, LLM07:2026, LLM09:2026, ASI02, ASI05, ASI07, ASI08, ASI09, ASI10 |
 
-Ten of twenty taxonomy IDs have no detector mapped at all — stated
+Eleven of twenty taxonomy IDs have no detector mapped at all — stated
 plainly, per the master prompt's own instruction that an honest matrix
 with gaps is more credible than one claiming full coverage. Half of those
 are genuine telemetry-layer limits (LLM01/07/09, ASI09/10: not observable

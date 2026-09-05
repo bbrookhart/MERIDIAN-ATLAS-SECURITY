@@ -7,6 +7,7 @@ from atlas_control.db import create_pool
 from atlas_control.routers import approval as approval_router
 from atlas_control.routers import budget as budget_router
 from atlas_control.routers import plan as plan_router
+from atlas_control.routers import retrieval as retrieval_router
 from atlas_control.routers import staged as staged_router
 
 
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     app.include_router(budget_router.router)
     app.include_router(staged_router.router)
     app.include_router(approval_router.router)
+    app.include_router(retrieval_router.router)
 
     @app.get("/health")
     async def health() -> dict:

@@ -59,6 +59,10 @@ services:
       ATLAS_DATABASE_URL: postgresql://atlas:atlas@postgres:5432/atlas
       ATLAS_OLLAMA_BASE_URL: http://host.docker.internal:11434
       ATLAS_CONTROL_BASE_URL: http://atlas-control:8100
+      # Runtime-overridable (default "pre") — lets the Phase C latency/
+      # recall benchmark exercise both filter strategies against the same
+      # running stack without a rebuild.
+      ATLAS_RETRIEVAL_MODE: ${ATLAS_RETRIEVAL_MODE:-pre}
     depends_on:
       postgres:
         condition: service_healthy

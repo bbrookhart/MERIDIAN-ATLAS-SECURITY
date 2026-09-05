@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     seed: int = 1337
     canary_seed: int = 1337
 
+    # Project 2: pre-filter resolves the caller's permitted allowed_roles
+    # set before the vector query runs; post-filter runs an unfiltered
+    # query and discards unauthorized candidates after. Both are real,
+    # both go through atlas-control's OPA policy — this flag only picks
+    # which SQL runs and when the authorization check happens. Default is
+    # "pre"; see packages/atlas-retrieval/README.md for the measured
+    # latency/recall tradeoff behind that default.
+    retrieval_mode: str = "pre"  # "pre" | "post"
+
     # Informational only — the enforced value lives in
     # atlas-control/policy/tool_authorization.rego as integer cents. Kept
     # here so the system prompt can state an accurate figure; changing this

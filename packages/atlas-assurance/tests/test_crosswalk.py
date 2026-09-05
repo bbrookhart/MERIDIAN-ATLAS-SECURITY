@@ -1,7 +1,7 @@
 from atlas_assurance.crosswalk import crosswalk_for, full_crosswalk
 from atlas_assurance.models import Framework
 from atlas_assurance.registry import CONTROLS, crosswalk_refs_for_control
-from atlas_redteam.coverage import ALL_CATEGORIES
+from atlas_schema.taxonomy import ALL_CATEGORIES
 
 
 def test_crosswalk_for_unknown_id_returns_empty() -> None:

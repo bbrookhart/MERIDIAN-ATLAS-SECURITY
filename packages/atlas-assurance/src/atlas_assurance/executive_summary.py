@@ -10,7 +10,7 @@ from __future__ import annotations
 import html
 from datetime import UTC, datetime
 
-from atlas_redteam.coverage import ALL_CATEGORIES
+from atlas_schema.taxonomy import ALL_CATEGORIES
 
 
 def _esc(value: object) -> str:

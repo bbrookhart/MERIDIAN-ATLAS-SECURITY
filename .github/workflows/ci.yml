@@ -1,0 +1,124 @@
+name: ci
+
+# The fast gate: lint, types, unit tests, and supply-chain scanning.
+# Deliberately needs no Docker, no Ollama and no GPU, so it runs in ~2
+# minutes on every push and is expected to be green at all times. The
+# expensive jobs that need the live stack live in atlas-redteam.yml
+# (nightly) and atlas-assurance.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+env:
+  UV_VERSION: "0.11.18"
+
+jobs:
+  lint:
+    name: lint & format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uvx ruff check .
+      - run: uvx ruff format --check .
+
+  types:
+    name: type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+      # Every package ships a py.typed marker, which is a promise to
+      # downstream consumers. This job is what makes that promise checked
+      # rather than asserted.
+      - run: uvx mypy packages/*/src --ignore-missing-imports
+
+  test:
+    name: unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+      - uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Sync workspace
+        run: uv sync --all-packages
+
+      # Scoped per package on purpose: asyncio_mode lives in each
+      # package's own pyproject.toml, so pytest only honors it when that
+      # package's config is the active one.
+      - name: atlas-schema
+        run: uv run --package atlas-schema pytest packages/atlas-schema -q
+      - name: atlas
+        run: uv run --package atlas pytest packages/atlas -q
+      - name: atlas-retrieval
+        run: uv run --package atlas-retrieval pytest packages/atlas-retrieval -q
+      - name: atlas-control
+        run: uv run --package atlas-control pytest packages/atlas-control -q
+      - name: atlas-redteam
+        run: uv run --package atlas-redteam pytest packages/atlas-redteam -q
+      - name: atlas-assurance
+        run: uv run --package atlas-assurance pytest packages/atlas-assurance -q
+
+      # atlas-detect's suite skips the tests that need the live
+      # ClickHouse/Collector stack; the rest must still pass here.
+      - name: atlas-detect (stack-free subset)
+        run: uv run --package atlas-detect pytest packages/atlas-detect -q
+
+      - name: OPA policy tests
+        run: opa test packages/atlas-control/policy
+
+  supply-chain:
+    name: AI-BOM vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Sync workspace
+        run: uv sync --package atlas-assurance
+
+      # Regenerating rather than trusting the committed BOM: a stale
+      # committed BOM would scan clean while the real dependency set
+      # drifted underneath it.
+      - name: Regenerate AI-BOM and check for inventory drift
+        run: |
+          uv run --package atlas-assurance python \
+            packages/atlas-assurance/scripts/check_bom_drift.py
+
+      - name: Install grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+
+      # Fails on any fixable vulnerability at medium or above. Accepted
+      # exceptions live in .grype.yaml, each with a written reason.
+      - name: Scan the AI-BOM
+        run: |
+          grype sbom:evidence/assurance/atlas_ai_bom.json \
+            -c .grype.yaml --fail-on medium -o table
+
+      - name: Upload BOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-ai-bom-${{ github.run_id }}
+          path: evidence/assurance/atlas_ai_bom.json
+          retention-days: 30

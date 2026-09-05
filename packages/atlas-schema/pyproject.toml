@@ -1,7 +1,7 @@
 [project]
 name = "atlas-schema"
 version = "0.1.0"
-description = "Add your description here"
+description = "Shared Finding schema and OWASP taxonomy tables — the contract every package in the portfolio reads and writes"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = ["pydantic>=2.9"]

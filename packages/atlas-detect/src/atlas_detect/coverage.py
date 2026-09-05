@@ -12,6 +12,8 @@ commonly cited elsewhere have moved in the 2026 revisions.
 
 from __future__ import annotations
 
+from typing import Any
+
 from atlas_detect.score import UNMEASURABLE
 
 LLM_IDS = [f"LLM{i:02d}:2026" for i in range(1, 11)]
@@ -63,7 +65,7 @@ def build_matrix(score_report) -> dict[str, dict]:
     matrix: dict[str, dict] = {}
     for tid in LLM_IDS + ASI_IDS:
         mapped_detectors = [name for name, ids in DETECTOR_TAXONOMY.items() if tid in ids]
-        entry = {
+        entry: dict[str, Any] = {
             "detectors": mapped_detectors,
             "recall": {name: recall_by_name.get(name) for name in mapped_detectors},
             "uncovered_reason": None,

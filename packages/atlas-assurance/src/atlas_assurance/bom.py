@@ -27,6 +27,7 @@ from cyclonedx.model.bom import Bom
 from cyclonedx.model.component import Component, ComponentType
 from cyclonedx.model.service import Service
 from cyclonedx.output.json import JsonV1Dot5
+from packageurl import PackageURL
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 LOCKFILE_PATH = REPO_ROOT / "uv.lock"
@@ -87,6 +88,17 @@ def _load_lock_packages() -> list[dict]:
 
 
 def _library_components() -> list[Component]:
+    """Every component carries a PURL, which is what makes this BOM
+    actually *scannable* rather than merely schema-valid.
+
+    Found the hard way: the first version of this function emitted no
+    `purl`, only a `bom-ref`. The result validated cleanly against the
+    CycloneDX 1.5 schema and `grype sbom:...` reported "No vulnerabilities
+    found" — because it had identified **0 of 298** components and had
+    nothing to check. A BOM without PURLs is unscannable, and a scanner
+    that silently reports clean on an unidentifiable BOM is worse than no
+    scanner. `test_bom.py` now asserts every library component has one.
+    """
     components = []
     for pkg in _load_lock_packages():
         name = pkg["name"]
@@ -99,6 +111,7 @@ def _library_components() -> list[Component]:
                 type=ComponentType.LIBRARY,
                 version=version,
                 bom_ref=f"pypi:{name}@{version}",
+                purl=PackageURL(type="pypi", name=name, version=version),
             )
         )
     return components

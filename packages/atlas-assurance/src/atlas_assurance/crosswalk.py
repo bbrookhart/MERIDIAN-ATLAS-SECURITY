@@ -6,10 +6,12 @@ complies with that framework. ISO/IEC 42001 certifies a management
 *system*; the EU AI Act regulates a *product*. Conflating the two is a
 common error this README does not make.
 
-Taxonomy IDs are the portfolio's own canonical set —
-`atlas_redteam.coverage.LLM_CATEGORIES`/`ASI_CATEGORIES`, imported here
-rather than redefined a third time (`atlas_detect.coverage` already
-reuses the same source).
+Taxonomy IDs are the portfolio's own canonical set, imported from
+`atlas_schema.taxonomy` rather than redefined here. They previously came
+from `atlas_redteam.coverage`, which made the whole red-team toolchain
+(garak, PyRIT, deepteam) a runtime dependency of this pipeline just to
+read a dict of strings — see `atlas_schema/taxonomy.py` for why they
+moved.
 
 Per-framework sourcing, and what's verified vs. reconstructed:
 
@@ -41,7 +43,7 @@ Per-framework sourcing, and what's verified vs. reconstructed:
 
 from __future__ import annotations
 
-from atlas_redteam.coverage import ALL_CATEGORIES
+from atlas_schema.taxonomy import ALL_CATEGORIES
 
 from atlas_assurance.models import Framework, FrameworkRef
 

@@ -1,22 +1,31 @@
 [project]
 name = "atlas-assurance"
 version = "0.1.0"
-description = "Add your description here"
+description = "Assurance and evidence pipeline — CI-generated control evidence, AIVSS scoring, framework crosswalk, AI-BOM"
 readme = "README.md"
 requires-python = ">=3.13"
+# `atlas` and `atlas-control` are real runtime deps: bom.py reads Atlas's
+# model config and reuses atlas_control.mcp_client's own description
+# hashing. `atlas-redteam` deliberately is NOT a dependency — the
+# taxonomy tables it used to supply now live in atlas-schema, so this
+# pipeline no longer drags garak/PyRIT/torch in to read a dict.
 dependencies = [
     "atlas-schema",
     "pydantic>=2.9",
     "duckdb>=1.1",
     "cyclonedx-python-lib>=11.11.1",
-    "atlas-redteam",
     "atlas",
     "atlas-control",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=0.24",
+]
+
 [tool.uv.sources]
 atlas-schema = { workspace = true }
-atlas-redteam = { workspace = true, editable = true }
 atlas = { workspace = true }
 atlas-control = { workspace = true }
 

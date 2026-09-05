@@ -16,7 +16,7 @@
 </head>
 <body>
 <h1>atlas-assurance — control register &amp; evidence</h1>
-<p>Generated 2026-08-10T21:37:27+00:00 from register generated 2026-08-10T21:37:27.922197+00:00.
+<p>Generated 2026-08-13T19:10:40+00:00 from register generated 2026-08-13T19:10:40.244312+00:00.
 13 controls assessed, 0 not assessed,
 0 stale. Every row below links back to a real test result — no
 assertion in this register exists without one (see evidence_store.py's enforcement).</p>
@@ -25,19 +25,19 @@ assertion in this register exists without one (see evidence_store.py's enforceme
 <p>Stale and not-assessed controls sorted first — evidence freshness is the point.</p>
 <table>
 <tr><th>Control</th><th>Status</th><th>Passed</th><th>Freshness</th><th>Last evidence</th><th>Findings mitigated</th></tr>
-<tr class='ok'><td>capability-tokens<br><span class='note'>Per-invocation, single-use, scoped capability tokens</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:22.294962-05:00</td><td>—</td></tr>
-<tr class='ok'><td>corpus-integrity-hash-verification<br><span class='note'>Retrieved chunk content-hash verified against ingestion-time hash</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:27.270881-05:00</td><td>—</td></tr>
-<tr class='ok'><td>detection-plan-deviation<br><span class='note'>An execute_step call outside the frozen plan is a detectable event</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:31:26.412850-05:00</td><td>—</td></tr>
-<tr class='ok'><td>detection-tool-denial-visibility<br><span class='note'>Denied tool invocations are a detectable trace-store event</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:31:26.412850-05:00</td><td>—</td></tr>
-<tr class='ok'><td>frozen-plan-execution<br><span class='note'>Plan frozen and hashed before execution; steps outside it are rejected</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:22.294962-05:00</td><td>—</td></tr>
-<tr class='ok'><td>mcp-tool-description-hash-pinning<br><span class='note'>MCP tool descriptions hash-pinned; drift excludes the tool from the planner</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:22.294962-05:00</td><td>—</td></tr>
-<tr class='ok'><td>pii-redaction-pre-embed<br><span class='note'>SSN/DOB redacted before embedding</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:27.270881-05:00</td><td>—</td></tr>
-<tr class='ok'><td>retrieval-authorization<br><span class='note'>Retrieval authorized per-role before chunks reach the prompt</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T21:37:27.786051+00:00</td><td>F-7b14f8a3-af2d-4e65-83b4-2f361869fe08</td></tr>
-<tr class='ok'><td>session-budget-cap<br><span class='note'>Per-session tool-call count and cumulative refund cap</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:22.294962-05:00</td><td>—</td></tr>
-<tr class='ok'><td>session-scoped-memory<br><span class='note'>Agent memory scoped to one session, provenance-tagged</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:18.711558-05:00</td><td>F-6779af4a-0327-45eb-9918-0fce9e42b4da, F-e30359a6-380b-47d7-b36f-f9113d13f656</td></tr>
-<tr class='ok'><td>staged-commit-rollback-window<br><span class='note'>Refund/email actions staged with a bounded void window before finalizing</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:22.294962-05:00</td><td>—</td></tr>
-<tr class='ok'><td>tool-authorization-refund-threshold<br><span class='note'>Refund threshold enforced in policy, not just prompt instruction</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T21:37:27.786051+00:00</td><td>F-53ffcab6-e6c0-4523-b1a6-c77fa7bd018d, F-ed5f20cd-3a7a-467d-842a-9c6fcb4a2101</td></tr>
-<tr class='ok'><td>untrusted-context-trust-boundary<br><span class='note'>Retrieved chunks wrapped with an explicit untrusted-content marker</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-10T16:37:27.270881-05:00</td><td>—</td></tr>
+<tr class='ok'><td>capability-tokens<br><span class='note'>Per-invocation, single-use, scoped capability tokens</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:35.408796-05:00</td><td>—</td></tr>
+<tr class='ok'><td>corpus-integrity-hash-verification<br><span class='note'>Retrieved chunk content-hash verified against ingestion-time hash</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:39.549804-05:00</td><td>—</td></tr>
+<tr class='ok'><td>detection-plan-deviation<br><span class='note'>An execute_step call outside the frozen plan is a detectable event</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:09:56.422417-05:00</td><td>—</td></tr>
+<tr class='ok'><td>detection-tool-denial-visibility<br><span class='note'>Denied tool invocations are a detectable trace-store event</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:09:56.422417-05:00</td><td>—</td></tr>
+<tr class='ok'><td>frozen-plan-execution<br><span class='note'>Plan frozen and hashed before execution; steps outside it are rejected</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:35.408796-05:00</td><td>—</td></tr>
+<tr class='ok'><td>mcp-tool-description-hash-pinning<br><span class='note'>MCP tool descriptions hash-pinned; drift excludes the tool from the planner</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:35.408796-05:00</td><td>—</td></tr>
+<tr class='ok'><td>pii-redaction-pre-embed<br><span class='note'>SSN/DOB redacted before embedding</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:39.549804-05:00</td><td>—</td></tr>
+<tr class='ok'><td>retrieval-authorization<br><span class='note'>Retrieval authorized per-role before chunks reach the prompt</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T19:10:40.167121+00:00</td><td>F-7b14f8a3-af2d-4e65-83b4-2f361869fe08</td></tr>
+<tr class='ok'><td>session-budget-cap<br><span class='note'>Per-session tool-call count and cumulative refund cap</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:35.408796-05:00</td><td>—</td></tr>
+<tr class='ok'><td>session-scoped-memory<br><span class='note'>Agent memory scoped to one session, provenance-tagged</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:32.861354-05:00</td><td>F-6779af4a-0327-45eb-9918-0fce9e42b4da, F-e30359a6-380b-47d7-b36f-f9113d13f656</td></tr>
+<tr class='ok'><td>staged-commit-rollback-window<br><span class='note'>Refund/email actions staged with a bounded void window before finalizing</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:35.408796-05:00</td><td>—</td></tr>
+<tr class='ok'><td>tool-authorization-refund-threshold<br><span class='note'>Refund threshold enforced in policy, not just prompt instruction</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T19:10:40.167121+00:00</td><td>F-53ffcab6-e6c0-4523-b1a6-c77fa7bd018d, F-ed5f20cd-3a7a-467d-842a-9c6fcb4a2101</td></tr>
+<tr class='ok'><td>untrusted-context-trust-boundary<br><span class='note'>Retrieved chunks wrapped with an explicit untrusted-content marker</span></td><td>assessed</td><td>yes</td><td>fresh</td><td>2026-08-13T14:10:39.549804-05:00</td><td>—</td></tr>
 </table>
 
 <h2>AIVSS vs. plain CVSS — largest divergences</h2>

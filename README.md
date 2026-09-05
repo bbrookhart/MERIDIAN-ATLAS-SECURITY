@@ -1,6 +1,7 @@
 # meridian-atlas-security
 
-[![ci](https://github.com/brianbrookhart/meridian-atlas-security/actions/workflows/ci.yml/badge.svg)](https://github.com/brianbrookhart/meridian-atlas-security/actions/workflows/ci.yml)
+<!-- Once published, add the CI badge (replace OWNER/REPO):
+[![ci](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml) -->
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 
@@ -64,37 +65,38 @@ stack alongside 65 benign requests
 
 | Detector | TP | FP | FN | Precision | Recall |
 |---|---|---|---|---|---|
+| Retrieval violation *(post-filter mode)* | 5 | 0 | 0 | **1.00** | **1.00** |
 | Tool invocation denied | 1 | 0 | 4 | **1.00** | **0.20** |
 | Canary in egress path | 0 | 0 | 0 | — | — |
-| Retrieval violation | 0 | 0 | 5 | — | 0.00 |
 | Memory poisoning | 0 | 25 | 5 | **0.00** | 0.00 |
 
-**Read that table as the deliverable, not as a disappointment.** Three of
-four detectors scored zero, each for a specific, diagnosable reason — and
-producing those reasons is the entire point. The alternative, which is
-what a coverage matrix alone gives you, is four detectors that look fine
-and have never caught anything:
+**Read that table as the deliverable, not as a scoreboard.** Every number
+is diagnosable, including the bad ones — which is the entire point. The
+alternative, which is what a coverage matrix alone gives you, is four
+detectors that look fine and have never caught anything.
 
-- `retrieval_violation` has **structurally nothing to observe** under the
-  safer pre-filter default. Unauthorized chunks are never candidates, so
-  no denial is ever logged. Pairing a denial-log detector with pre-filter
-  authorization is an architectural blind spot, and it only became
-  visible by measuring.
+- `retrieval_violation` scores **1.00/1.00** in post-filter mode: every
+  broker→HR attempt caught, none of 65 benign sessions falsely flagged,
+  verified against the live decision log and reproduced on a second run.
+  In the **default** pre-filter mode it scores 0.00 — not a defect, but a
+  real architectural blind spot: unauthorized chunks are never candidates,
+  so no denial is ever logged and there is nothing to observe. Both runs
+  are reported rather than only the flattering one.
+- The tool-denial detector's 0.20 recall is **model behaviour, not
+  detector blindness**. llama3.2 failed to convert "$50,000" into an
+  over-threshold `amount_cents` on 4 of 5 attempts. Every genuinely
+  over-threshold attempt was caught, with zero false positives — and the
+  1/0/4 split reproduced exactly across two independent runs.
 - `memory_poisoning` is a genuine **technique mismatch**: the probe tests
   cross-session leakage, the detector looks for within-session
   propagation. Its 25 false positives come from a substring heuristic
   firing on ordinary shared JSON formatting — reported, not tuned away.
-- The tool-denial detector's 0.20 recall is **model behaviour, not
-  detector blindness**. llama3.2 failed to convert "$50,000" into an
-  over-threshold `amount_cents` on 4 of 5 attempts. Every genuinely
-  over-threshold attempt was caught, with zero false positives.
 
-The honest summary: this measurement produced exactly **one true positive
-across the whole detection layer**. Two detectors were separately proven
-firing end to end against the live stack in the incident walkthroughs
-(plan deviation at 4.7s, canary in egress at 11.4s), so they work — but
-corpus-measured efficacy rests on n=1, and closing that gap is the
-clearest open work in this repo.
+Two further detectors were proven firing end to end against the live
+stack in the incident walkthroughs (plan deviation at 4.7s, canary in
+egress at 11.4s) rather than by corpus replay. The remaining honest gap
+is `memory_poisoning`, whose probe pairing doesn't exercise what it
+detects.
 
 Eleven of twenty OWASP LLM/ASI categories have no detector mapped at all,
 stated plainly in the coverage matrix.
@@ -190,7 +192,9 @@ opa test packages/atlas-control/policy
 
 ## Scope and safety
 
-See [`SECURITY.md`](SECURITY.md) for the full policy. In short: every
+[`THREAT-MODEL.md`](THREAT-MODEL.md) covers assets, actors, trust
+boundaries and which control stands at each one;
+[`SECURITY.md`](SECURITY.md) is the policy. In short: every
 attack in this repo targets Atlas, a purpose-built local lab
 system. `atlas-redteam` enforces a target allowlist in code — it will
 refuse to run against a host that isn't the local Atlas instance. The

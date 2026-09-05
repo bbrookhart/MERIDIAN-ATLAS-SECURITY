@@ -95,7 +95,7 @@ an oversight.
 | Orchestrator | `atlas/db/retrieval.py::authorized_search()` | The actual boundary: every returned chunk has already been authorized, in either mode |
 | Trust boundary | `atlas_retrieval/trust_boundary.py`, `atlas/prompts.py` | `<retrieved-context trust="untrusted">` wrapping + system-prompt clause |
 | Corpus integrity | `atlas_retrieval/corpus_integrity.py` | `content_sha256` verification, ingestion-time anomaly detection, canary-displacement check |
-| Decision log | `atlas_retrieval/decision_log.py`, `atlas/decision_log.py` | Append-only `retrieval_decisions`; `GET /retrieval/decisions` query interface |
+| Decision log | `atlas_retrieval/decision_log.py`, `atlas/decision_log.py` | Append-only `retrieval_decisions`; `GET /retrieval/decisions` query interface, filterable by `role`, `session_id`, `since`, `until` |
 | Permission mirroring | `atlas/routers/ingestion.py` | `POST /retrieval/permission-events` webhook, measured `staleness_seconds` |
 | PII | `atlas_retrieval/pii.py` | `redact_pii()`, called before embedding in `seed.py`, never after |
 
@@ -163,8 +163,8 @@ performance data point.
 ## Decision log — a worked example
 
 Every `/rag/query` call is logged (`retrieval_decisions`, queryable via
-`GET /retrieval/decisions?role=...&since=...&until=...`) before the chat
-completion runs, with `response_hash` attached after. Across every
+`GET /retrieval/decisions?role=...&session_id=...&since=...&until=...`)
+before the chat completion runs, with `response_hash` attached after. Across every
 logged broker-role request in this session's testing (145 rows, spanning
 red-team runs and the benchmark above), **zero HR-owned chunks ever
 reached a broker's context window** — not "the model declined to repeat

@@ -75,6 +75,30 @@ def _coverage_rows(matrix: dict[str, dict]) -> str:
     return "\n".join(rows)
 
 
+def _post_mode_section(post: dict | None) -> str:
+    """`retrieval_violation` reads a denial log that only has entries when
+    Atlas runs with ATLAS_RETRIEVAL_MODE=post, so it is measured in a
+    separate run. Both are shown rather than only the flattering one: the
+    pre-filter result is a real architectural property (a denial-log
+    detector paired with pre-filter authorization has nothing to observe),
+    and the post-filter result is what the detector does when it can
+    actually see its own signal.
+    """
+    if not post:
+        return ""
+    return f"""
+<h2>Post-filter mode (ATLAS_RETRIEVAL_MODE=post)</h2>
+<p>Separate run, {post["attack_trial_count"]} attack replays vs.
+{post["benign_trial_count"]} benign requests. Only
+<code>retrieval_violation</code> is expected to differ — it is the one
+detector whose source signal exists only in this mode.</p>
+<table>
+<tr><th>Detector</th><th>TP</th><th>FP</th><th>FN</th><th>Precision</th><th>Recall</th><th>MTTD</th></tr>
+{_score_rows(post["scores"])}
+</table>
+"""
+
+
 def render_dashboard(
     attack_trial_count: int,
     benign_trial_count: int,
@@ -82,6 +106,7 @@ def render_dashboard(
     unmeasurable: dict[str, str],
     coverage_matrix: dict[str, dict],
     incident_walkthroughs_html: str = "",
+    post_mode: dict | None = None,
 ) -> str:
     generated_at = datetime.now(UTC).isoformat(timespec="seconds")
     return f"""<!doctype html>
@@ -118,6 +143,7 @@ implementation — detectors run as a periodic scan over ClickHouse, not a
 live streaming consumer. Stated as such, not dressed up as production
 real-time detection latency.</p>
 
+{_post_mode_section(post_mode)}
 <h2>Detectors with no positive instance in this corpus</h2>
 <p>Not reported as 0% recall (misleadingly implies a real miss) or omitted
 (implies untested) — stated plainly instead.</p>

@@ -213,16 +213,34 @@ re-issued against the instrumented stack) vs. 65 benign requests
 in `evidence/reports/atlas_detect_dashboard.html`
 (`scripts/build_dashboard.py`) — this table is the summary.
 
+`retrieval_violation` reads a denial log that only has entries when Atlas
+runs in post-filter mode, so it is measured in a **separate run**. Both
+are reported — the pre-filter zero is a real architectural property, not
+a result to hide behind the flattering one.
+
+**Default run — `ATLAS_RETRIEVAL_MODE=pre`:**
+
 | Detector | TP | FP | FN | Precision | Recall | MTTD |
 |---|---|---|---|---|---|---|
 | Canary token in any egress path | 0 | 0 | 0 | — | — | — |
-| Tool invocation denied (ASI03/LLM03:2026) | 1 | 0 | 4 | 1.00 | 0.20 | 977s |
+| Tool invocation denied (ASI03/LLM03:2026) | 1 | 0 | 4 | 1.00 | 0.20 | 722s |
 | retrieval_violation (LLM02:2026) | 0 | 0 | 5 | — | 0.00 | — |
 | memory_poisoning (ASI06) | 0 | 25 | 5 | 0.00 | 0.00 | — |
 
-None of these numbers are clean wins, and reporting them as such would be
-the overclaim this whole portfolio argues against. What they actually
-show, and three real bugs this measurement work caught along the way:
+**Second run — `ATLAS_RETRIEVAL_MODE=post`:**
+
+| Detector | TP | FP | FN | Precision | Recall | MTTD |
+|---|---|---|---|---|---|---|
+| Canary token in any egress path | 0 | 0 | 0 | — | — | — |
+| Tool invocation denied (ASI03/LLM03:2026) | 1 | 0 | 4 | 1.00 | 0.20 | 899s |
+| **retrieval_violation (LLM02:2026)** | **5** | **0** | **0** | **1.00** | **1.00** | 676s |
+| memory_poisoning (ASI06) | 0 | 25 | 5 | 0.00 | 0.00 | — |
+
+`tool_denied` reproduced identically across both independent runs (1/0/4),
+which is the closest thing to a repeatability check this corpus supports.
+
+What these numbers actually show, and the real bugs this measurement work
+caught along the way:
 
 - **Canary detector: 0 positive instances, 0 false positives.** None of
   the 10 replayed canary-extraction trials reproduced the token in this
@@ -251,12 +269,27 @@ show, and three real bugs this measurement work caught along the way:
   41 unit tests caught this, because they only ever constructed args with
   a real int. Fixed in `atlas_control/policy.py::_normalize_args()` —
   see `packages/atlas-control/README.md`.
-- **retrieval_violation: unmeasurable by design, not broken.**
-  `ATLAS_RETRIEVAL_MODE=pre` (Project 2's default) means an unauthorized
-  chunk is never a candidate in the first place — there's structurally no
-  denial to log. This detector only has anything to observe in
-  post-filter mode. A real, honest architectural blind spot from pairing
-  a denial-log detector with the safer retrieval default.
+- **retrieval_violation: perfect in post-filter mode, structurally blind
+  in pre-filter mode.** In post mode it scored **precision 1.00, recall
+  1.00 (TP=5, FP=0)** — every broker→HR retrieval attempt caught, and not
+  one of the 65 benign sessions falsely flagged. Verified independently
+  of the scorer against the live decision log: 20 attack rows all carried
+  denials, 25 benign rows carried none. It then reproduced exactly on a
+  second independent run.
+
+  In pre-filter mode it scores 0.00 recall, and that is not a defect: an
+  unauthorized chunk is never a candidate, so **no denial is ever logged
+  and there is nothing to observe**. Pairing a denial-log detector with
+  pre-filter authorization is a real architectural blind spot — the safer
+  retrieval default is precisely what blinds the detector.
+
+  Getting here required a fix, not just a config flip. `/retrieval/decisions`
+  had no session filter, so this detector had been scored by a hand-rolled
+  "did any denial happen for this role" special case rather than the
+  per-session TP/FP path every Sigma rule uses. The `caller_session_id`
+  column had always been recorded — only the query interface was missing
+  it. Adding the filter deleted the special case and made the number
+  comparable to the others.
 - **memory_poisoning: a real technique mismatch, and a real heuristic
   precision problem.** memory-probe tests *cross-session* leakage (which
   Project 3's session-scoped memory already prevents structurally); this
@@ -276,7 +309,7 @@ uncovered-reason and unmeasurable-reason string in
 
 | Covered, measured | Covered, unmeasurable in this corpus | Not covered (stated why) |
 |---|---|---|
-| LLM02:2026 (retrieval_violation), LLM03:2026/ASI03 (tool-denial), ASI06 (memory_poisoning) — recall reported above, honestly low | LLM06:2026 (cost_asymmetry), LLM08:2026 (canary), LLM10:2026 (ANSI), ASI01 (plan_deviation, tool_sequence_anomaly), ASI04 (MCP drift) | LLM01:2026, LLM04:2026, LLM05:2026, LLM07:2026, LLM09:2026, ASI02, ASI05, ASI07, ASI08, ASI09, ASI10 |
+| LLM02:2026 (retrieval_violation — 1.00/1.00 in post-filter mode, 0.00 in pre), LLM03:2026/ASI03 (tool-denial — precision 1.00, recall 0.20), ASI06 (memory_poisoning — 0.00, technique mismatch) | LLM06:2026 (cost_asymmetry), LLM08:2026 (canary), LLM10:2026 (ANSI), ASI01 (plan_deviation, tool_sequence_anomaly), ASI04 (MCP drift) | LLM01:2026, LLM04:2026, LLM05:2026, LLM07:2026, LLM09:2026, ASI02, ASI05, ASI07, ASI08, ASI09, ASI10 |
 
 Eleven of twenty taxonomy IDs have no detector mapped at all — stated
 plainly, per the master prompt's own instruction that an honest matrix
@@ -323,6 +356,13 @@ docker compose -f packages/atlas/docker-compose.yml up --build -d
 # Phase 3: replay the attack corpus, generate benign traffic, score, build
 # the coverage matrix — against the live stack:
 uv run --package atlas-detect python packages/atlas-detect/scripts/run_phase3.py
+
+# retrieval_violation only has denials to observe in post-filter mode, so
+# it is measured separately. --mode records which mode the stack is in and
+# picks the output filename; it does NOT set the mode — bring the stack up
+# with the env var first:
+ATLAS_RETRIEVAL_MODE=post docker compose -f packages/atlas/docker-compose.yml up -d
+uv run --package atlas-detect python packages/atlas-detect/scripts/run_phase3.py --mode post
 
 # Incident walkthroughs:
 uv run --package atlas-detect python packages/atlas-detect/scripts/incident_walkthrough_exfiltration.py

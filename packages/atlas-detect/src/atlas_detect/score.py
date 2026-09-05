@@ -199,31 +199,32 @@ def score_all(client, atlas_base_url: str, attack_trials: list, benign_trials: l
     # Stateful detectors
     if "retrieval_violation" not in UNMEASURABLE:
         positives = positive_by_detector.get("retrieval_violation", set())
+        # Scored by the same per-session TP/FP path as every Sigma rule.
+        # This used to be a hand-rolled special case ("did any denial happen
+        # for the broker role") because /retrieval/decisions had no session
+        # filter — the column was always recorded, only the query interface
+        # was missing it. Adding that filter removed the special case.
         rows = retrieval_violation.detect(atlas_base_url)
-        for r in rows:
-            r["SessionId"] = None  # decision log doesn't carry session_id from these replays
-            r["Timestamp"] = r.get("occurred_at")
-        # retrieval_violation's ground truth is role-scoped, not session-scoped
-        # (the endpoint doesn't expose session_id) — reported by role match count instead.
-        report.scores.append(
-            DetectorScore(
-                name="retrieval_violation",
-                tp=len(rows) if positives else 0,
-                fp=0,
-                fn=0 if rows or not positives else len(positives),
-                precision=None,
-                recall=(1.0 if rows else 0.0) if positives else None,
-                mttd_seconds=None,
-                note=(
-                    "scored by presence of any denial for the broker role, not per-session "
-                    "(endpoint has no session filter); ATLAS_RETRIEVAL_MODE=pre (the default, "
-                    "Project 2) means unauthorized chunks are never candidates in the first "
-                    "place, so there is structurally no denial to log — this detector only "
-                    "has anything to observe in post-filter mode. A real, honest architectural "
-                    "blind spot of pairing this detector with the safer default, not a bug."
-                ),
+        score = _score("retrieval_violation", positives, negative_sessions, rows)
+        modes = sorted({r["mode"] for r in rows if r.get("mode")})
+        if rows:
+            score.note = (
+                f"Measured in {'/'.join(modes)}-filter mode, where a denied candidate is "
+                "actually logged and therefore observable. Scored per-session by the same "
+                "path as every Sigma rule. Precision counts only benign sessions as possible "
+                "false positives (the scorer's convention for every detector); attack "
+                "sessions mapped to other detectors are not charged against it."
             )
-        )
+        else:
+            score.note = (
+                "No denial was logged anywhere in this run, so there was structurally nothing "
+                "to observe. Under ATLAS_RETRIEVAL_MODE=pre (Project 2's safer default) an "
+                "unauthorized chunk is never a candidate, so no denial is ever recorded — a "
+                "real architectural property of pairing a denial-log detector with pre-filter "
+                "authorization, not a detector defect. Re-run with ATLAS_RETRIEVAL_MODE=post "
+                "to measure it."
+            )
+        report.scores.append(score)
 
     if "memory_poisoning" not in UNMEASURABLE:
         positives = positive_by_detector.get("memory_poisoning", set())

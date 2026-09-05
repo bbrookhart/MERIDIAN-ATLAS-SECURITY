@@ -12,6 +12,9 @@ internet-reachable environment.** It is designed to be exploitable. It
 ships with intentionally weak defaults, and several weaknesses are still
 open by design so that later projects have something real to detect.
 
+See [`THREAT-MODEL.md`](THREAT-MODEL.md) for the assets, actors, trust
+boundaries and controls this system is designed around.
+
 ## Reporting a vulnerability
 
 Vulnerabilities in the *intentionally vulnerable* target

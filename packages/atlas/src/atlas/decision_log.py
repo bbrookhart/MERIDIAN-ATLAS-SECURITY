@@ -48,16 +48,27 @@ async def list_decisions(
     since: str | None = None,
     until: str | None = None,
     limit: int = 50,
+    session_id: str | None = None,
 ) -> list[dict]:
     """Query interface for the decision log (EU AI Act Article 12 evidence)
     — e.g. "on 3 August, which HR documents did the broker-facing
     assistant see, and who authorized that": role="broker",
-    since="2026-08-03", until="2026-08-04"."""
+    since="2026-08-03", until="2026-08-04".
+
+    `session_id` filters to one conversation. The column has always been
+    recorded; only this query interface lacked the filter, which forced
+    Project 4's retrieval_violation detector to score "did any denial
+    happen for this role" instead of real per-session TP/FP like every
+    other detector.
+    """
     conditions: list[str] = []
     args: list = []
     if role:
         args.append(role)
         conditions.append(f"caller_role = ${len(args)}")
+    if session_id:
+        args.append(session_id)
+        conditions.append(f"caller_session_id = ${len(args)}")
     if since:
         args.append(since)
         conditions.append(f"occurred_at >= ${len(args)}::timestamptz")

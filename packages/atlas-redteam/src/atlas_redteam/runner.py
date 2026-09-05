@@ -36,6 +36,7 @@ def _resolve_vulnerabilities(names: list[str]) -> list:
 def run_probe(target: AtlasClient, spec: dict, trials: int, base_seed: int) -> ProbeRun:
     tool = spec["tool"]
     taxonomy = _taxonomy_from_spec(spec)
+    surface = spec.get("surface", "chat")
 
     if tool == "garak":
         from atlas_redteam.adapters import garak_adapter
@@ -46,6 +47,7 @@ def run_probe(target: AtlasClient, spec: dict, trials: int, base_seed: int) -> P
             taxonomy,
             generations=trials,
             seed=base_seed,
+            surface=surface,
         )
 
     if tool == "pyrit":
@@ -61,6 +63,7 @@ def run_probe(target: AtlasClient, spec: dict, trials: int, base_seed: int) -> P
             taxonomy,
             spec["substring"],
             seed=base_seed,
+            surface=surface,
         )
 
     if tool == "deepteam":
@@ -73,6 +76,24 @@ def run_probe(target: AtlasClient, spec: dict, trials: int, base_seed: int) -> P
             vulnerabilities,
             taxonomy,
             attacks_per_vulnerability_type=trials,
+            seed=base_seed,
+            surface=surface,
+        )
+
+    if tool == "memory-probe":
+        from atlas_redteam.adapters import memory_probe
+
+        return memory_probe.run(target, spec["probe_name"], taxonomy, trials=trials, seed=base_seed)
+
+    if tool == "excessive-agency-probe":
+        from atlas_redteam.adapters import excessive_agency_probe
+
+        return excessive_agency_probe.run(
+            target,
+            spec["probe_name"],
+            taxonomy,
+            amount=spec.get("amount", 50000.0),
+            trials=trials,
             seed=base_seed,
         )
 

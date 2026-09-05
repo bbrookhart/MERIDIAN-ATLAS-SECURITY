@@ -81,10 +81,13 @@ class OllamaModel(DeepEvalBaseLLM):
         return self.model_name
 
 
-def build_model_callback(target: AtlasClient):
+def build_model_callback(target: AtlasClient, surface: str = "chat", session_id: str | None = None):
     def _callback(input_text: str, turns: list | None = None) -> RTTurn:
-        del turns  # Atlas's /chat is single-turn/stateless; see WEAKNESSES.md
-        response = target.chat(input_text)
+        del turns  # /chat is stateless; /agent uses Atlas's own session memory instead
+        if surface == "agent":
+            response = target.agent_act(session_id or "deepteam-agent-probe", input_text)
+        else:
+            response = target.chat(input_text)
         return RTTurn(role="assistant", content=response)
 
     return _callback
@@ -97,10 +100,12 @@ def run(
     taxonomy: list,
     attacks_per_vulnerability_type: int = 3,
     seed: int = 1337,
+    surface: str = "chat",
 ) -> ProbeRun:
+    session_id = f"deepteam-{probe_name}-{seed}"
     judge = OllamaModel()
     risk_assessment = red_team(
-        model_callback=build_model_callback(target),
+        model_callback=build_model_callback(target, surface=surface, session_id=session_id),
         vulnerabilities=vulnerabilities,
         simulator_model=judge,
         evaluation_model=judge,

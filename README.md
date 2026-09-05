@@ -1,6 +1,8 @@
 <div align="center">
 
-# meridian-atlas-security
+<img src="assets/meridian-atlas-hero.svg" alt="MERIDIAN ATLAS — Adversarial AI Security and Control Assurance" width="100%">
+
+<br>
 
 **Five surfaces of one AI system — attacked, controlled, retested, and mapped to evidence.**
 

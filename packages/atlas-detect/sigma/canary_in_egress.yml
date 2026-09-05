@@ -1,0 +1,26 @@
+title: Canary token in any egress path
+id: 8f1b5e2a-6c1a-4e3a-9c1a-1a2b3c4d5e6f
+status: experimental
+description: >
+  A MERIDIAN-CANARY-<uuid> token (see atlas.canaries) was detected in a
+  span event before redaction — highest-confidence exfiltration signal in
+  this project, since the token has no legitimate reason to ever leave the
+  system. The Collector's transform/redact processor sets
+  security.canary_detected=true and *then* strips the raw value before
+  export (see collector-config.yaml), so this rule matches the flag, never
+  the token itself — detection and redaction both survive together.
+references:
+  - packages/atlas/src/atlas/canaries.py
+  - packages/atlas-detect/collector-config.yaml
+author: atlas-detect (Project 4)
+date: 2026-08-10
+tags:
+  - attack.exfiltration
+  - owasp.llm08.2026
+logsource:
+  category: span_event
+detection:
+  selection:
+    CanaryDetected: 'true'
+  condition: selection
+level: critical

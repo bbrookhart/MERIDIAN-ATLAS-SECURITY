@@ -11,6 +11,15 @@
 # OTLP payload containing a real canary-shaped string and a fake SSN
 # through this exact config (via a live Collector container) and asserts
 # neither lands in ClickHouse.
+#
+# Redact-and-flag, not redact-and-lose: the canary-egress Sigma rule
+# (sigma/canary_in_egress.yml) is the highest-confidence detection this
+# project has, but it can only fire on data that still exists — and the
+# whole point of the redaction above is that the raw canary value does
+# NOT survive to the backend. So the match is recorded as a boolean
+# attribute (security.canary_detected) *before* the value itself is
+# redacted, same statement-ordering trick used for PII below. The
+# detector sees "a canary was here", never the canary itself.
 
 receivers:
   otlp:
@@ -26,6 +35,8 @@ processors:
     trace_statements:
       - context: spanevent
         statements:
+          - 'set(attributes["security.canary_detected"], true) where IsMatch(attributes["content"], "MERIDIAN-CANARY-[0-9a-fA-F-]+")'
+          - 'set(attributes["security.ansi_escape_detected"], true) where IsMatch(attributes["content"], "\\x1b\\[[0-9;]*[a-zA-Z]")'
           - 'replace_pattern(attributes["content"], "MERIDIAN-CANARY-[0-9a-fA-F-]+", "[REDACTED-CANARY]")'
           - 'replace_pattern(attributes["content"], "\\d{3}-\\d{2}-\\d{4}", "[REDACTED-SSN]")'
           - 'replace_pattern(attributes["content"], "DOB:\\s*\\d{4}-\\d{2}-\\d{2}", "[REDACTED-DOB]")'

@@ -66,6 +66,25 @@ This is also just better practice for money, but the immediate reason it's
 true here is a real upstream bug this project ran into and had to route
 around.
 
+**A second real OPA comparison bug, found much later — by Project 4's
+detection work, not by this project's own tests.** The same installed OPA
+build's comparison operators use a total type ordering where *any* string
+sorts as greater than *any* number: `opa eval '"50" > 50000'` → `true`.
+Ollama formats tool-call arguments inconsistently, and occasionally emits
+`amount_cents` as a JSON string rather than a number — when it does, every
+refund gets denied as "over threshold" regardless of the actual amount,
+because the comparison is being decided by *type*, not *value*. This
+project's own 41 unit tests and 9 `opa test` cases never caught it,
+because they only ever constructed `args` with a real int. It surfaced
+when Project 4's benign workload generator sent a plain, in-threshold $50
+refund request through the live stack and measured a false-positive
+policy denial — detection engineering finding a real bug in the control
+plane it's observing, which is a large part of the point of building it.
+Fixed in `policy.py::_normalize_args()`: coerce known-numeric args to a
+real int before they reach OPA, at the one place they enter the policy
+engine, rather than trusting the caller's JSON types. See
+`packages/atlas-detect/README.md` for the measurement that caught it.
+
 **Sandboxed execution (gVisor/Firecracker) is scoped down, not faked.**
 Atlas has no code-or-shell-execution tool today — its four tools are fixed
 Python functions, none of which run arbitrary code — so there is no live

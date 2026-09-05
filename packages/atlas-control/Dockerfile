@@ -24,6 +24,13 @@ COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/packages/atlas-control/src /app/packages/atlas-control/src
 COPY --from=builder /app/packages/atlas-control/policy /app/packages/atlas-control/policy
 COPY --from=builder /app/packages/atlas-detect/src /app/packages/atlas-detect/src
+# send_email's staged-commit path writes to var/outbox (tools/native.py) —
+# without this, the non-root `atlas` user can't create it under a
+# root-owned /app and every send_email call 500s. Found live: the first
+# Project 4 benign-workload run included "send an email confirming
+# receipt" as a plausible adjuster request, and that's exactly what it
+# hit — this path had never actually been exercised end-to-end before.
+RUN mkdir -p /app/var/outbox && chown -R atlas:atlas /app/var
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 ENV ATLAS_CONTROL_POLICY_DIR=/app/packages/atlas-control/policy
 USER atlas

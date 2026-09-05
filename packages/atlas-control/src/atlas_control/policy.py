@@ -52,11 +52,36 @@ def _opa_binary() -> str:
     return binary
 
 
+def _normalize_args(args: dict) -> dict:
+    """OPA's comparison operators use a total type ordering where *any*
+    string sorts as greater than *any* number — confirmed live:
+    `opa eval '"50" > 50000'` returns `true`. A numeric argument that
+    arrives as a JSON string (Ollama's tool-calling formats arguments
+    inconsistently; caught live when Project 4's benign traffic generator
+    sent a plain $50 refund request and the model happened to emit
+    `{"amount_cents": "5000"}` with a string value) makes
+    `refund_over_threshold` spuriously true regardless of the actual
+    amount — every string-valued amount gets denied as "over threshold,"
+    even a $0.01 one. Same "integer cents, not floats" discipline this
+    project already applies for the OPA float-comparison bug (see
+    tool_authorization.rego), extended to "actually a number, not a
+    numeral-shaped string" — normalized once, here, at the boundary where
+    args enter the policy engine, rather than trusted implicitly.
+    """
+    normalized = dict(args)
+    if isinstance(normalized.get("amount_cents"), str):
+        try:
+            normalized["amount_cents"] = int(normalized["amount_cents"])
+        except ValueError:
+            pass  # leave as-is — a genuinely malformed value should fail closed in OPA, not here
+    return normalized
+
+
 def _build_input(request: AuthorizationRequest) -> dict:
     return {
         "caller": {"role": request.role, "session_id": request.session_id},
         "tool": request.tool,
-        "args": request.args,
+        "args": _normalize_args(request.args),
         "budget": {
             "tool_calls_used": request.tool_calls_used,
             "refund_cents_used": request.refund_cents_used,

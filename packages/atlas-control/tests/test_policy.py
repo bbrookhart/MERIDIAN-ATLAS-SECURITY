@@ -47,3 +47,26 @@ def test_session_budget_exhausted():
     result = authorize(_req(tool="search_kb", args={"query": "x"}, tool_calls_used=20))
     assert not result.allow
     assert result.reason == "session budget exceeded"
+
+
+def test_string_valued_amount_cents_is_normalized_not_denied_by_type():
+    """Regression guard for a real bug found live via Project 4's benign
+    traffic generator: OPA's comparison operators use a total type
+    ordering where any string sorts as greater than any number
+    (`opa eval '"50" > 50000'` -> true), so a well-under-threshold refund
+    whose amount arrived as a JSON string (Ollama formats tool-call
+    arguments inconsistently) was being denied as "over threshold"
+    regardless of the actual amount. _normalize_args() must coerce it to
+    a real int before it reaches OPA."""
+    result = authorize(_req(args={"claim_number": "CLM-1", "amount_cents": "5000"}))
+    assert result.allow
+    assert result.reason == "allowed"
+
+
+def test_string_valued_amount_cents_over_threshold_is_still_denied():
+    """The normalization must not accidentally defeat the real threshold
+    check for a genuinely over-threshold amount that happens to arrive as
+    a string."""
+    result = authorize(_req(args={"claim_number": "CLM-1", "amount_cents": "5000000"}))
+    assert not result.allow
+    assert result.reason == "refund exceeds policy threshold"

@@ -5,6 +5,17 @@ deliberately tiny and has exactly one heavyweight dependency (`pydantic`),
 because everything else depends on it — including packages that must not
 inherit the red-team toolchain.
 
+```mermaid
+flowchart LR
+    RT["atlas-redteam<br/>runs the probes"] -- "writes Finding" --> DB[("evidence/findings.duckdb")]
+    DB -- "reads Finding" --> AS["atlas-assurance<br/>scores + registers evidence"]
+    SCHEMA["atlas-schema<br/>Finding · TaxonomyRef · taxonomy tables"]
+    SCHEMA -. "defines the shape" .-> RT
+    SCHEMA -. "defines the shape" .-> DB
+    SCHEMA -. "defines the shape" .-> AS
+    SCHEMA -. "taxonomy IDs" .-> DET["atlas-detect<br/>coverage matrix"]
+```
+
 ## `Finding`
 
 One probe's measured result against one build of Atlas. Produced by

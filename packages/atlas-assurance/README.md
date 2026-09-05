@@ -16,9 +16,9 @@ this pipeline says so out loud instead of reporting it green.
 flowchart TB
     subgraph before["Before — Projects 0-4"]
         direction TB
-        P1["Project 1\nfindings.duckdb"] -.-> H["a human, at audit time,\nassembling a spreadsheet"]
-        P23["Projects 2/3\ncontrol code + tests\n(run by hand, nowhere in CI)"] -.-> H
-        P4["Project 4\nphase3_results.json"] -.-> H
+        P1["Project 1<br/>findings.duckdb"] -.-> H["a human, at audit time,<br/>assembling a spreadsheet"]
+        P23["Projects 2/3<br/>control code + tests<br/>(run by hand, nowhere in CI)"] -.-> H
+        P4["Project 4<br/>phase3_results.json"] -.-> H
         H -.-> CLAIM["claims, unlinked to artifacts"]
     end
 ```
@@ -28,23 +28,23 @@ flowchart TB
     subgraph after["After — Project 5"]
         direction TB
         subgraph ci["CI (.github/workflows/atlas-assurance.yml)"]
-            PY["pytest --junitxml\natlas, atlas-control, atlas-retrieval"]
-            OPA["opa test --format json\ntool + retrieval policy"]
+            PY["pytest --junitxml<br/>atlas, atlas-control, atlas-retrieval"]
+            OPA["opa test --format json<br/>tool + retrieval policy"]
         end
-        PY --> ING["ingest/{junit,opa}.py\n→ TestResult"]
+        PY --> ING["ingest/{junit,opa}.py<br/>→ TestResult"]
         OPA --> ING
-        DB[("evidence/findings.duckdb\nProject 1")] --> INGF["ingest/findings.py\n→ atlas_schema.Finding"]
-        REG["registry.py\n13 ControlDefs\n(the ONLY hand-authored input)"] --> ES
-        ING --> ES["evidence_store.py\nrecord_assertion()\nraises UnsupportedClaimError\nif no linked test"]
+        DB[("evidence/findings.duckdb<br/>Project 1")] --> INGF["ingest/findings.py<br/>→ atlas_schema.Finding"]
+        REG["registry.py<br/>13 ControlDefs<br/>(the ONLY hand-authored input)"] --> ES
+        ING --> ES["evidence_store.py<br/>record_assertion()<br/>raises UnsupportedClaimError<br/>if no linked test"]
         INGF --> ES
-        ES --> REGISTER["register.py\ncontrol_register.json"]
-        AIVSS["aivss.py\nAIVSS v0.8 vs CVSS-only"] --> REGISTER
-        XW["crosswalk.py\nNIST/ISO/CSA/ATLAS/EU AI Act"] --> REGISTER
-        P4J["phase3_results.json\nProject 4, read verbatim"] --> REGISTER
+        ES --> REGISTER["register.py<br/>control_register.json"]
+        AIVSS["aivss.py<br/>AIVSS v0.8 vs CVSS-only"] --> REGISTER
+        XW["crosswalk.py<br/>NIST/ISO/CSA/ATLAS/EU AI Act"] --> REGISTER
+        P4J["phase3_results.json<br/>Project 4, read verbatim"] --> REGISTER
         REGISTER --> RPT["assurance report"]
         REGISTER --> EXEC["executive summary"]
         REGISTER --> TREND["ASR trend"]
-        BOM["bom.py → CycloneDX AI-BOM\n+ check_bom_drift.py"] --> CIART["CI artifacts"]
+        BOM["bom.py → CycloneDX AI-BOM<br/>+ check_bom_drift.py"] --> CIART["CI artifacts"]
     end
 ```
 

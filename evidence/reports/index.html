@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>meridian-atlas-security — evidence</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    margin: 0; padding: 3rem 1.5rem; line-height: 1.6;
+    background: #0d1117; color: #e6edf3;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  header { border-bottom: 1px solid #30363d; padding-bottom: 2rem; margin-bottom: 2.5rem; }
+  h1 { font-size: 2rem; margin: 0 0 .5rem; letter-spacing: -0.02em; }
+  .tag { color: #7d8590; font-size: 1.05rem; margin: 0 0 1.25rem; }
+  .meta { color: #7d8590; font-size: .85rem; }
+  h2 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: .08em;
+       color: #7d8590; margin: 2.5rem 0 1rem; font-weight: 600; }
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .card {
+    display: block; text-decoration: none; color: inherit;
+    border: 1px solid #30363d; border-radius: 10px; padding: 1.25rem;
+    background: #161b22; transition: border-color .15s, transform .15s;
+  }
+  .card:hover { border-color: #58a6ff; transform: translateY(-2px); }
+  .card h3 { margin: 0 0 .5rem; font-size: 1rem; }
+  .card p { margin: 0 0 .75rem; color: #9198a1; font-size: .9rem; }
+  .go { color: #58a6ff; font-size: .85rem; font-weight: 600; }
+  .badge {
+    display: inline-block; margin-left: .5rem; padding: .1rem .5rem;
+    border-radius: 999px; background: #1f6feb33; color: #58a6ff;
+    font-size: .72rem; font-weight: 600; vertical-align: middle;
+  }
+  .note {
+    border-left: 3px solid #d29922; background: #1c1a12; padding: 1rem 1.25rem;
+    border-radius: 0 8px 8px 0; color: #d8d2c4; font-size: .9rem; margin-top: 2.5rem;
+  }
+  a.home { color: #58a6ff; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>meridian-atlas-security</h1>
+  <p class="tag">Five surfaces of one AI system, attacked, controlled, retested and mapped to evidence.</p>
+  <p class="meta">Every page below is a generated artifact, not a screenshot.
+  Generated 2026-08-13T20:47:42+00:00. &nbsp;·&nbsp;
+  <a class="home" href="https://github.com">Source on GitHub</a></p>
+</header>
+
+<h2>Red-team runs — before and after</h2>
+<div class="grid">
+<a class="card" href="phase_a_agent_baseline.html"><h3>Phase A — agent surface, before controls<span class="badge">4 findings</span></h3><p>The original attack run against the unprotected agent. Refund-threshold bypass succeeded at 0.600 ASR, cross-session memory leak at 0.200.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="phase_a_rag_authorization.html"><h3>Phase A — retrieval surface, before controls<span class="badge">3 findings</span></h3><p>Broker asking directly for HR documents succeeded at 1.000 ASR, deterministic.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="phase_c_agent_baseline.html"><h3>Phase C — agent surface, after controls<span class="badge">4 findings</span></h3><p>Same probes re-run against the hardened agent once atlas-control was enforcing.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="phase_c_rag_authorization.html"><h3>Phase C — retrieval surface, after controls<span class="badge">3 findings</span></h3><p>Same probes re-run once per-role retrieval authorization was enforcing.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="phase_c_highn.html"><h3>Phase C — agent retest at N=20<span class="badge">2 findings</span></h3><p>Higher trial count, because zero successes at N=5 only bounds ASR below 0.434 — not strong enough to call a fix. This is the run the headline numbers cite.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="phase_c_rag_highn.html"><h3>Phase C — retrieval retest at N=20<span class="badge">1 findings</span></h3><p>The N=20 retest backing the LLM02:2026 before/after claim.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="run_a4196b539408.html"><h3>Multi-tool exploratory run<span class="badge">3 findings</span></h3><p>PyRIT, garak and deepteam together against the chat surface — the run that showed deepteam&#x27;s excessive-agency probe never reproduced the vulnerability.</p><span class="go">Open report &rarr;</span></a>
+</div>
+
+<h2>Detection</h2>
+<div class="grid">
+<a class="card" href="atlas_detect_dashboard.html"><h3>Detection efficacy — measured, both retrieval modes</h3><p>Per-detector TP/FP/FN, precision, recall and MTTD from replaying the real attack corpus against the live instrumented stack, plus the two worked incident walkthroughs with real timestamps.</p><span class="go">Open report &rarr;</span></a>
+</div>
+
+<h2>Assurance</h2>
+<div class="grid">
+<a class="card" href="atlas_assurance_report.html"><h3>Control register &amp; evidence</h3><p>Every control linked to the test that exercises it, with freshness. The pipeline refuses to assert a control is effective without a linked passing test.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="atlas_assurance_executive_summary.html"><h3>Executive summary</h3><p>The same register in business language: risk posture, top residual risks, and what changed since the previous report.</p><span class="go">Open report &rarr;</span></a>
+<a class="card" href="atlas_assurance_trend.html"><h3>Attack success rate over time</h3><p>Per-taxonomy ASR across every committed run, before and after each control.</p><span class="go">Open report &rarr;</span></a>
+</div>
+
+<p class="note"><strong>This is a security lab.</strong> The target system
+(<code>atlas</code>) is intentionally vulnerable and is documented as such.
+Every attack here ran against a local instance; the red-team harness enforces a
+target allowlist in code. All data is synthetic.</p>
+</div>
+</body>
+</html>

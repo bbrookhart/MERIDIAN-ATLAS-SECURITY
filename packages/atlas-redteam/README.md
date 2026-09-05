@@ -6,6 +6,27 @@ promptfoo) against [Atlas](../atlas), normalizes their findings into one
 schema (`atlas_schema.Finding`), handles non-determinism statistically, and
 gates CI on regression.
 
+```mermaid
+flowchart LR
+    subgraph tools["Published tools — orchestration only, no novel attacks"]
+        G["garak"]
+        P["PyRIT"]
+        D["DeepTeam"]
+        PF["promptfoo<br/>(manual only — cannot run unattended)"]
+    end
+    subgraph own["This project's own probes"]
+        OWN["excessive-agency · retrieval-leak<br/>memory · canary probes"]
+    end
+
+    G & P & D & PF & OWN -- "N trials each,<br/>target allowlist enforced in code" --> T["Atlas<br/>127.0.0.1 only"]
+    T --> ADAPT["adapters/*.py<br/>normalise to atlas_schema.Finding"]
+    ADAPT --> STATS["stats.py<br/>Wilson 95% CI<br/>deterministic | flaky | probabilistic"]
+    STATS --> DEDUP["findings.py::dedup<br/>merge across tools"]
+    DEDUP --> DB[("evidence/findings.duckdb")]
+    DB --> REPORT["report.py<br/>committed HTML evidence"]
+    DB --> BASE["baseline.py<br/>regression gate — CI fails<br/>if a mitigated finding comes back"]
+```
+
 ## Why a single-shot red-team run is not evidence
 
 An attack that succeeds 3 times in 10 is not the same finding as one that

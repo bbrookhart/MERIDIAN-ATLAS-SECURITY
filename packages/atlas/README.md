@@ -13,6 +13,38 @@ Atlas is Project 0 of a six-project AI security portfolio
 project attacks, hardens, observes, or scores. It's deliberately small —
 readable end to end in about ten minutes.
 
+## Surfaces and where the deliberate weaknesses live
+
+Every weakness below was built in on purpose and is catalogued with its
+OWASP ID in [`WEAKNESSES.md`](WEAKNESSES.md). Six have since been closed
+by Projects 2 and 3; the diagram shows the original, unprotected shape
+that Project 1 attacked.
+
+```mermaid
+flowchart TB
+    U["Caller<br/>X-Atlas-Role: broker | adjuster | hr<br/>(asserted, never authenticated)"]
+    U --> CHAT["/chat<br/>LLM as a component"]
+    U --> RAG["/rag/query<br/>retrieval over pgvector"]
+    U --> AGENT["/agent/act<br/>tool-using agent"]
+
+    RAG --> W1{{"#1 no per-role filter<br/>#2 no trust delimiter<br/>LLM01 / LLM02"}}
+    W1 --> DOCS[("documents<br/>one shared index,<br/>all three roles")]
+
+    AGENT --> W2{{"#3 refund cap only in the prompt<br/>#4 one shared long-lived credential<br/>LLM03 / ASI03"}}
+    W2 --> TOOLS["lookup_claim · issue_refund<br/>send_email · search_kb"]
+    AGENT --> W3{{"#6 MCP descriptions trusted verbatim<br/>ASI04 / MCP03"}}
+    W3 --> MCP["mcp-ticketing · mcp-docstore"]
+    AGENT -.-> W4{{"#5 memory unscoped across sessions<br/>ASI06"}}
+    W4 -.-> MEM[("agent_memory")]
+
+    CHAT --> W5{{"#7 no rate limit or cost cap — LLM06<br/>#8 output unsanitised to terminal — LLM10"}}
+
+    CANARY["3 planted MERIDIAN-CANARY tokens:<br/>system prompt · RAG corpus · MCP docstore"]
+    CANARY -.-> CHAT
+    CANARY -.-> DOCS
+    CANARY -.-> MCP
+```
+
 ## Architecture
 
 ```

@@ -5,6 +5,10 @@ __pycache__/
 .env.*
 evidence/raw/
 evidence/transcripts/
+# Intermediate junit/opa artifacts that build_register.py regenerates on
+# every run — the control register itself is the committed evidence, and
+# CI still uploads these as run artifacts.
+evidence/assurance/_artifacts/
 *.duckdb.wal
 .pytest_cache/
 packages/atlas/var/

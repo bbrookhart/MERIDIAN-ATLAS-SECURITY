@@ -4,10 +4,21 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["atlas-schema", "pydantic>=2.9", "duckdb>=1.1"]
+dependencies = [
+    "atlas-schema",
+    "pydantic>=2.9",
+    "duckdb>=1.1",
+    "cyclonedx-python-lib>=11.11.1",
+    "atlas-redteam",
+    "atlas",
+    "atlas-control",
+]
 
 [tool.uv.sources]
 atlas-schema = { workspace = true }
+atlas-redteam = { workspace = true, editable = true }
+atlas = { workspace = true }
+atlas-control = { workspace = true }
 
 [build-system]
 requires = ["uv_build>=0.11.18,<0.12.0"]

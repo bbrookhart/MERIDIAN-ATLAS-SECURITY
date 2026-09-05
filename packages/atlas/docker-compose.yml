@@ -69,7 +69,21 @@ services:
     ulimits:
       nofile: { soft: 262144, hard: 262144 }
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
+      # Probes the NATIVE protocol (port 9000) via clickhouse-client rather
+      # than just HTTP on 8123, because 9000 is what the Collector's
+      # clickhouseexporter actually dials — a healthcheck should test the
+      # interface its dependents use.
+      #
+      # Measured caveat, stated because it matters: this narrows the race
+      # but does NOT close it. clickhouse-client connects over the
+      # container's own loopback, and ClickHouse accepts on loopback before
+      # it accepts on the container's network interface — so `service_healthy`
+      # can still go true a few seconds before a *peer container* can
+      # connect. Verified on a cold `up` after `down -v`: the Collector
+      # still saw 3 "connection refused" retries over ~5s before succeeding.
+      # otel-collector's `restart: on-failure` is what actually makes this
+      # robust; this healthcheck just shrinks the window.
+      test: ["CMD", "clickhouse-client", "--password", "atlas", "--query", "SELECT 1"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -78,6 +92,13 @@ services:
     image: otel/opentelemetry-collector-contrib:0.158.0
     networks: [atlas_internal, atlas_observability]
     command: ["--config=/etc/otelcol/config.yaml"]
+    # The actual fix for the ClickHouse startup race (see the healthcheck
+    # comment above). The Collector *exits* rather than retrying when its
+    # exporter can't reach ClickHouse at startup, so without this it stayed
+    # dead while every other service came up healthy — silently absent
+    # telemetry, which is precisely the failure mode Project 4 exists to
+    # argue against. Found live while building Project 5.
+    restart: on-failure
     volumes:
       - ../atlas-detect/collector-config.yaml:/etc/otelcol/config.yaml:ro
     ports:

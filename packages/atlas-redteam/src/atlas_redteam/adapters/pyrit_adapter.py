@@ -13,6 +13,20 @@ replacement with no JSON escaping, so objectives are escaped the same way
 PyRIT's own `JsonStringConverter` does (json.dumps, quotes stripped) before
 being sent — this avoids a converter-pipeline dependency while producing an
 identical result.
+
+Same seed limitation as garak_adapter: the raw HTTP request template has no
+slot for Atlas's `seed` field, so trial-to-trial and *run-to-run* variation
+here comes from Atlas's own unseeded sampling. Recorded `Finding.seed`
+values are bookkeeping only. This was confirmed materially in Project 3's
+Phase A/C comparison: the PyRIT- and garak-sourced findings moved between
+runs with no code-level change able to explain the difference (Atlas's
+`/agent/act` prompt-completion path is untouched by the control-plane
+rewrite), while the two custom probes in `memory_probe.py` and
+`excessive_agency_probe.py` — which *do* forward a real seed via
+`AtlasClient.agent_act(..., seed=...)` — moved in a way directly
+attributable to the code change. Don't treat a PyRIT/garak ASR delta
+between two runs as evidence of anything without a seeded, apples-to-apples
+adapter to corroborate it.
 """
 
 from __future__ import annotations

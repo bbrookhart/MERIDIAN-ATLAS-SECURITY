@@ -5,9 +5,12 @@ Four have since been mitigated by Project 3 (`atlas-control`) — kept here,
 not deleted, because this table plus Project 1's committed before-state
 findings (`evidence/reports/phase_a_agent_baseline.html`,
 run `phase_a_agent_baseline`) is the permanent record of what was true
-before the fix, and Project 3's own retest (`run phase_c_agent_baseline`)
-is the record of what changed. The remaining open rows are later projects'
-job (retrieval authorization, detection, assurance).
+before the fix, and Project 3's retest (`evidence/reports/phase_c_highn.html`,
+run `phase_c_highn` — a higher-trial-count rerun of the two probes that are
+genuinely attributable to the fix; see `packages/atlas-control/README.md`
+for why) is the record of what changed and promoted into
+`atlas-redteam`'s regression baseline. The remaining open rows are later
+projects' job (retrieval authorization, detection, assurance).
 
 IDs follow the OWASP Top 10 for LLM Applications 2026 and the OWASP Top 10
 for Agentic Applications (ASI) 2026, per the numbering in this portfolio's
